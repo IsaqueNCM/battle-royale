@@ -443,7 +443,7 @@ canvas.addEventListener('click', (event) => {
             playerName = inputName;
             player.name = playerName;
             console.log('Emitindo join para:', playerName);
-            socket.emit('join', playerName);
+            socket.emit('join', playerName); // Só agora emitimos o 'join'
             console.log("Game started with name:", playerName);
         } else {
             const socialLinks = [
@@ -481,7 +481,7 @@ canvas.addEventListener('click', (event) => {
             player.name = playerName;
             bullets = [];
             socket.emit('leave');
-            socket.emit('join', playerName);
+            socket.emit('join', playerName); // Emite 'join' ao reiniciar
             console.log("Game restarted with name:", playerName);
             keys.w = false;
             keys.a = false;
@@ -551,7 +551,7 @@ function gameLoop() {
         pentagons.forEach(p => drawPentagon(p));
         drawBullets();
         drawScoreboard();
-        drawTopScores(); // Adiciona o ranking na tela
+        drawTopScores();
         if (!gameOver) {
             movePlayer();
             checkPlayerPentagonCollisions();
