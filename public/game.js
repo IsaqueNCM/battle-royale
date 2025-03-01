@@ -33,9 +33,6 @@ let lastShotTime = 0;
 let lastCollisionTime = 0;
 let lastMoveUpdate = 0;
 const moveUpdateInterval = 50; // 50ms
-let pendingShots = [];
-let lastShotEmit = 0;
-const shotEmitInterval = 100; // 100ms
 
 const keys = { w: false, a: false, s: false, d: false };
 
@@ -56,26 +53,29 @@ let player = {
 function drawPlayer(p) {
     ctx.beginPath();
     ctx.arc(p.x, p.y, 20, 0, Math.PI * 2);
-    ctx.fillStyle = 'blue';
+    ctx.fillStyle = p.id === player.id ? 'blue' : '#4169E1'; // Azul para jogador atual, azul royal para outros
     ctx.fill();
     ctx.closePath();
 
+    // Barra de HP
     ctx.fillStyle = 'gray';
     ctx.fillRect(p.x - 20, p.y - 35, 40, 5);
     ctx.fillStyle = 'red';
     ctx.fillRect(p.x - 20, p.y - 35, (p.hp / 100) * 40, 5);
 
+    // Nome
     ctx.fillStyle = 'black';
     ctx.font = '12px Arial';
     ctx.textAlign = 'center';
     ctx.fillText(p.name, p.x, p.y - 45);
 
+    // Arma como círculo maior
     const weaponLength = 30;
     const weaponX = p.x + Math.cos(p.angle) * weaponLength;
     const weaponY = p.y + Math.sin(p.angle) * weaponLength;
     
     ctx.beginPath();
-    ctx.rect(weaponX - 5, weaponY - 5, 10, 10);
+    ctx.arc(weaponX, weaponY, 15, 0, Math.PI * 2); // Círculo maior
     ctx.fillStyle = 'red';
     ctx.fill();
     ctx.closePath();
@@ -98,7 +98,7 @@ function drawPentagon(p) {
         }
     }
     ctx.closePath();
-    ctx.fillStyle = p.behavior === 'chase' ? 'purple' : 'orange';
+    ctx.fillStyle = 'red'; // Todos pentágonos vermelhos
     ctx.fill();
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 2;
@@ -114,7 +114,7 @@ function drawItem(item) {
     ctx.closePath();
 
     ctx.fillStyle = 'white';
-    ctx.font = '900 24px Arial'; // Mantendo o tamanho e peso do "+"
+    ctx.font = '900 24px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('+', item.x, item.y);
@@ -405,13 +405,12 @@ function shoot() {
         };
 
         bullets.push(bullet);
-        pendingShots.push(bullet);
-
-        if (currentTime - lastShotEmit >= shotEmitInterval) {
-            socket.emit('shoot', pendingShots);
-            pendingShots = [];
-            lastShotEmit = currentTime;
-        }
+        
+        socket.emit('shoot', {
+            x: bullet.x,
+            y: bullet.y,
+            angle: bullet.angle
+        });
     }
 }
 
@@ -621,14 +620,14 @@ function gameLoop() {
     } else {
         drawPlayers();
         pentagons.forEach(p => drawPentagon(p));
-        items.forEach(item => drawItem(item)); // Desenha os itens
+        items.forEach(item => drawItem(item));
         drawBullets();
         drawScoreboard();
         drawTopScores();
         if (!gameOver) {
             movePlayer();
             checkPlayerPentagonCollisions();
-            checkPlayerItemCollisions(); // Verifica colisões com itens
+            checkPlayerItemCollisions();
             if (player.isShooting) shoot();
             updateBullets();
             updatePlayer();
