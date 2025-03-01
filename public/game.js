@@ -11,6 +11,12 @@ socket.on('connect_error', (error) => {
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+// Carregar a imagem para Isaque15e da pasta skins
+const isaqueImage = new Image();
+isaqueImage.src = './skins/isaque15e.png'; // Caminho relativo para a pasta skins
+isaqueImage.onload = () => console.log('Imagem de Isaque15e carregada com sucesso');
+isaqueImage.onerror = () => console.error('Erro ao carregar a imagem de Isaque15e');
+
 let players = [];
 let pentagons = [];
 let items = [];
@@ -24,20 +30,19 @@ let topScores = [];
 let lastElimination = { killer: '', victim: '', timestamp: 0 };
 const eliminationDisplayTime = 5000;
 
-const bulletSpeed = 300; // Aumentei para compensar o deltaTime (unidades por segundo)
+const bulletSpeed = 300;
 const bulletCooldown = 500;
 const collisionCooldown = 1000;
 let lastShotTime = 0;
 let lastCollisionTime = 0;
 let lastMoveUpdate = 0;
-const moveUpdateInterval = 50; // 50ms
+const moveUpdateInterval = 50;
 
 const keys = { w: false, a: false, s: false, d: false };
 
-// Parâmetros de movimento do jogador com aceleração
-const ACCELERATION = 300; // Aumentei para aceleração mais perceptível (unidades por segundo²)
-const MAX_SPEED = 150;    // Aumentei para velocidade máxima mais prática (unidades por segundo)
-const FRICTION = 200;     // Reduzi o atrito para desaceleração mais suave (unidades por segundo)
+const ACCELERATION = 300;
+const MAX_SPEED = 150;
+const FRICTION = 150;
 
 let player = {
     id: null,
@@ -55,7 +60,6 @@ let player = {
     purplePentagonsEliminated: 0
 };
 
-// Object Pool para balas
 const BULLET_POOL_SIZE = 100;
 const bulletPool = [];
 for (let i = 0; i < BULLET_POOL_SIZE; i++) {
@@ -75,11 +79,18 @@ function getInactiveBullet() {
 }
 
 function drawPlayer(p) {
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, 20, 0, Math.PI * 2);
-    ctx.fillStyle = p.id === player.id ? 'blue' : 'red';
-    ctx.fill();
-    ctx.closePath();
+    const radius = 20;
+    const diameter = radius * 2;
+
+    if (p.name === 'Isaque15e' && isaqueImage.complete && isaqueImage.naturalWidth > 0) {
+        ctx.drawImage(isaqueImage, p.x - radius, p.y - radius, diameter, diameter);
+    } else {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = p.id === player.id ? 'blue' : 'red';
+        ctx.fill();
+        ctx.closePath();
+    }
 
     ctx.fillStyle = 'gray';
     ctx.fillRect(p.x - 20, p.y - 35, 40, 5);
@@ -333,7 +344,6 @@ function checkCollision(obj1, obj2) {
 function movePlayer(deltaTime) {
     if (gameOver || player.hp <= 0) return;
 
-    // Calcular aceleração baseada nas teclas pressionadas
     let accelX = 0;
     let accelY = 0;
 
@@ -342,23 +352,20 @@ function movePlayer(deltaTime) {
     if (keys.a) accelX -= ACCELERATION;
     if (keys.d) accelX += ACCELERATION;
 
-    // Aplicar aceleração à velocidade
     player.velocityX += accelX * deltaTime;
     player.velocityY += accelY * deltaTime;
 
-    // Aplicar atrito apenas se não houver entrada ativa na direção
     if (!keys.a && !keys.d) {
         const frictionX = player.velocityX > 0 ? -FRICTION : FRICTION;
         player.velocityX += frictionX * deltaTime;
-        if (Math.abs(player.velocityX) < 1) player.velocityX = 0; // Parar completamente se muito lento
+        if (Math.abs(player.velocityX) < 1) player.velocityX = 0;
     }
     if (!keys.w && !keys.s) {
         const frictionY = player.velocityY > 0 ? -FRICTION : FRICTION;
         player.velocityY += frictionY * deltaTime;
-        if (Math.abs(player.velocityY) < 1) player.velocityY = 0; // Parar completamente se muito lento
+        if (Math.abs(player.velocityY) < 1) player.velocityY = 0;
     }
 
-    // Limitar velocidade máxima
     const speed = Math.sqrt(player.velocityX * player.velocityX + player.velocityY * player.velocityY);
     if (speed > MAX_SPEED) {
         const factor = MAX_SPEED / speed;
@@ -366,11 +373,9 @@ function movePlayer(deltaTime) {
         player.velocityY *= factor;
     }
 
-    // Atualizar posição
     player.x += player.velocityX * deltaTime;
     player.y += player.velocityY * deltaTime;
 
-    // Limitar posição dentro do canvas
     player.x = Math.max(20, Math.min(canvas.width - 20, player.x));
     player.y = Math.max(20, Math.min(canvas.height - 20, player.y));
 }
@@ -667,11 +672,10 @@ document.addEventListener('keyup', (event) => {
     if (event.key in keys) keys[event.key] = false;
 });
 
-let lastTime = performance.now(); // Usar performance.now() para maior precisão
+let lastTime = performance.now();
 
 function gameLoop(timestamp) {
-    // Calcular deltaTime em segundos com limite para evitar grandes saltos
-    const deltaTime = Math.min((timestamp - lastTime) / 1000, 0.1); // Limitar a 100ms
+    const deltaTime = Math.min((timestamp - lastTime) / 1000, 0.1);
     lastTime = timestamp;
 
     console.log('Game loop running - gameStarted:', gameStarted, 'gameOver:', gameOver);
