@@ -24,7 +24,7 @@ let topScores = [];
 let lastElimination = { killer: '', victim: '', timestamp: 0 };
 const eliminationDisplayTime = 5000;
 
-const bulletSpeed = 7;
+const bulletSpeed = 300; // Aumentei para compensar o deltaTime (unidades por segundo)
 const bulletCooldown = 500;
 const collisionCooldown = 1000;
 let lastShotTime = 0;
@@ -35,17 +35,17 @@ const moveUpdateInterval = 50; // 50ms
 const keys = { w: false, a: false, s: false, d: false };
 
 // Parâmetros de movimento do jogador com aceleração
-const ACCELERATION = 10; // Aceleração em unidades por segundo²
-const MAX_SPEED = 5;    // Velocidade máxima em unidades por segundo
-const FRICTION = 5;     // Desaceleração por segundo (atrito)
+const ACCELERATION = 300; // Aumentei para aceleração mais perceptível (unidades por segundo²)
+const MAX_SPEED = 150;    // Aumentei para velocidade máxima mais prática (unidades por segundo)
+const FRICTION = 200;     // Reduzi o atrito para desaceleração mais suave (unidades por segundo)
 
 let player = {
     id: null,
     name: playerName,
     x: 400,
     y: 300,
-    velocityX: 0, // Velocidade atual em X
-    velocityY: 0, // Velocidade atual em Y
+    velocityX: 0,
+    velocityY: 0,
     angle: 0,
     isShooting: false,
     score: 0,
@@ -342,17 +342,23 @@ function movePlayer(deltaTime) {
     if (keys.a) accelX -= ACCELERATION;
     if (keys.d) accelX += ACCELERATION;
 
-    // Aplicar aceleração à velocidade (usando deltaTime em segundos)
+    // Aplicar aceleração à velocidade
     player.velocityX += accelX * deltaTime;
     player.velocityY += accelY * deltaTime;
 
-    // Aplicar atrito para desacelerar gradualmente
-    const frictionX = player.velocityX > 0 ? -FRICTION : FRICTION;
-    const frictionY = player.velocityY > 0 ? -FRICTION : FRICTION;
-    player.velocityX += frictionX * deltaTime;
-    player.velocityY += frictionY * deltaTime;
+    // Aplicar atrito apenas se não houver entrada ativa na direção
+    if (!keys.a && !keys.d) {
+        const frictionX = player.velocityX > 0 ? -FRICTION : FRICTION;
+        player.velocityX += frictionX * deltaTime;
+        if (Math.abs(player.velocityX) < 1) player.velocityX = 0; // Parar completamente se muito lento
+    }
+    if (!keys.w && !keys.s) {
+        const frictionY = player.velocityY > 0 ? -FRICTION : FRICTION;
+        player.velocityY += frictionY * deltaTime;
+        if (Math.abs(player.velocityY) < 1) player.velocityY = 0; // Parar completamente se muito lento
+    }
 
-    // Limitar a velocidade máxima
+    // Limitar velocidade máxima
     const speed = Math.sqrt(player.velocityX * player.velocityX + player.velocityY * player.velocityY);
     if (speed > MAX_SPEED) {
         const factor = MAX_SPEED / speed;
@@ -360,11 +366,7 @@ function movePlayer(deltaTime) {
         player.velocityY *= factor;
     }
 
-    // Se a velocidade for muito pequena, zerar para evitar movimento residual
-    if (Math.abs(player.velocityX) < 0.1) player.velocityX = 0;
-    if (Math.abs(player.velocityY) < 0.1) player.velocityY = 0;
-
-    // Atualizar posição com base na velocidade
+    // Atualizar posição
     player.x += player.velocityX * deltaTime;
     player.y += player.velocityY * deltaTime;
 
@@ -608,7 +610,7 @@ canvas.addEventListener('click', (event) => {
             player.purplePentagonsEliminated = 0;
             player.x = 400;
             player.y = 300;
-            player.velocityX = 0; // Resetar velocidade ao reiniciar
+            player.velocityX = 0;
             player.velocityY = 0;
             playerName = newName || playerName;
             player.name = playerName;
@@ -665,12 +667,11 @@ document.addEventListener('keyup', (event) => {
     if (event.key in keys) keys[event.key] = false;
 });
 
-let lastTime = 0;
+let lastTime = performance.now(); // Usar performance.now() para maior precisão
 
 function gameLoop(timestamp) {
-    // Calcular deltaTime em segundos
-    if (!lastTime) lastTime = timestamp;
-    const deltaTime = (timestamp - lastTime) / 1000; // Converter de ms para segundos
+    // Calcular deltaTime em segundos com limite para evitar grandes saltos
+    const deltaTime = Math.min((timestamp - lastTime) / 1000, 0.1); // Limitar a 100ms
     lastTime = timestamp;
 
     console.log('Game loop running - gameStarted:', gameStarted, 'gameOver:', gameOver);
@@ -695,11 +696,11 @@ function gameLoop(timestamp) {
         drawScoreboard();
         drawTopScores();
         if (!gameOver) {
-            movePlayer(deltaTime); // Passar deltaTime para o movimento
+            movePlayer(deltaTime);
             checkPlayerPentagonCollisions();
             checkPlayerItemCollisions();
             if (player.isShooting) shoot();
-            updateBullets(deltaTime); // Passar deltaTime para as balas
+            updateBullets(deltaTime);
             updatePlayer();
             drawLastElimination();
         }
