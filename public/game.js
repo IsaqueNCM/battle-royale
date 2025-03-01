@@ -1,4 +1,10 @@
 const socket = io('https://battle-royale-backend.onrender.com');
+socket.on('connect', () => {
+    console.log('Conectado ao servidor com sucesso!');
+});
+socket.on('connect_error', (error) => {
+    console.error('Erro ao conectar ao servidor:', error);
+});
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
