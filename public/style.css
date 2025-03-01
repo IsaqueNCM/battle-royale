@@ -1,0 +1,19 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #f0f0f0;
+}
+
+#gameArea {
+    text-align: center;
+    position: relative;
+}
+
+canvas {
+    border: 1px solid #000;
+    background-color: #ffffff;
+}
