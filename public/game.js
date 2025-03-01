@@ -12,9 +12,8 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 let players = [];
-let bullets = [];
 let pentagons = [];
-let items = []; // Novo array para itens especiais
+let items = [];
 let gameOver = false;
 let isRestarting = false;
 let gameStarted = false;
@@ -25,7 +24,6 @@ let topScores = [];
 let lastElimination = { killer: '', victim: '', timestamp: 0 };
 const eliminationDisplayTime = 5000;
 
-const speed = 5;
 const bulletSpeed = 7;
 const bulletCooldown = 500;
 const collisionCooldown = 1000;
@@ -36,11 +34,18 @@ const moveUpdateInterval = 50; // 50ms
 
 const keys = { w: false, a: false, s: false, d: false };
 
+// Parâmetros de movimento do jogador com aceleração
+const ACCELERATION = 10; // Aceleração em unidades por segundo²
+const MAX_SPEED = 5;    // Velocidade máxima em unidades por segundo
+const FRICTION = 5;     // Desaceleração por segundo (atrito)
+
 let player = {
     id: null,
     name: playerName,
     x: 400,
     y: 300,
+    velocityX: 0, // Velocidade atual em X
+    velocityY: 0, // Velocidade atual em Y
     angle: 0,
     isShooting: false,
     score: 0,
@@ -50,33 +55,49 @@ let player = {
     purplePentagonsEliminated: 0
 };
 
+// Object Pool para balas
+const BULLET_POOL_SIZE = 100;
+const bulletPool = [];
+for (let i = 0; i < BULLET_POOL_SIZE; i++) {
+    bulletPool.push({
+        x: 0,
+        y: 0,
+        dx: 0,
+        dy: 0,
+        angle: 0,
+        shooterId: null,
+        active: false
+    });
+}
+
+function getInactiveBullet() {
+    return bulletPool.find(bullet => !bullet.active) || null;
+}
+
 function drawPlayer(p) {
     ctx.beginPath();
     ctx.arc(p.x, p.y, 20, 0, Math.PI * 2);
-    ctx.fillStyle = p.id === player.id ? 'blue' : 'red'; // Azul para jogador atual, vermelho para inimigos
+    ctx.fillStyle = p.id === player.id ? 'blue' : 'red';
     ctx.fill();
     ctx.closePath();
 
-    // Barra de HP
     ctx.fillStyle = 'gray';
     ctx.fillRect(p.x - 20, p.y - 35, 40, 5);
     ctx.fillStyle = 'red';
     ctx.fillRect(p.x - 20, p.y - 35, (p.hp / 100) * 40, 5);
 
-    // Nome
     ctx.fillStyle = 'black';
     ctx.font = '12px Arial';
     ctx.textAlign = 'center';
     ctx.fillText(p.name, p.x, p.y - 45);
 
-    // Arma como círculo
     const weaponLength = 30;
     const weaponX = p.x + Math.cos(p.angle) * weaponLength;
     const weaponY = p.y + Math.sin(p.angle) * weaponLength;
     
     ctx.beginPath();
     ctx.arc(weaponX, weaponY, 7.5, 0, Math.PI * 2);
-    ctx.fillStyle = p.id === player.id ? 'red' : 'black'; // Vermelho para jogador atual, preto para inimigos
+    ctx.fillStyle = p.id === player.id ? 'red' : 'black';
     ctx.fill();
     ctx.closePath();
 }
@@ -98,7 +119,7 @@ function drawPentagon(p) {
         }
     }
     ctx.closePath();
-    ctx.fillStyle = p.behavior === 'chase' ? 'purple' : 'orange'; // Roxo para chase, laranja para evade
+    ctx.fillStyle = p.behavior === 'chase' ? 'purple' : 'orange';
     ctx.fill();
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 2;
@@ -106,7 +127,7 @@ function drawPentagon(p) {
 }
 
 function drawItem(item) {
-    const radius = 10; // Raio de 10 para um diâmetro de 20
+    const radius = 10;
     ctx.beginPath();
     ctx.arc(item.x, item.y, radius, 0, Math.PI * 2);
     ctx.fillStyle = 'red';
@@ -289,12 +310,14 @@ function drawStartScreen() {
 }
 
 function drawBullets() {
-    bullets.forEach(bullet => {
-        ctx.beginPath();
-        ctx.arc(bullet.x, bullet.y, 5, 0, Math.PI * 2);
-        ctx.fillStyle = 'green';
-        ctx.fill();
-        ctx.closePath();
+    bulletPool.forEach(bullet => {
+        if (bullet.active) {
+            ctx.beginPath();
+            ctx.arc(bullet.x, bullet.y, 5, 0, Math.PI * 2);
+            ctx.fillStyle = 'green';
+            ctx.fill();
+            ctx.closePath();
+        }
     });
 }
 
@@ -307,19 +330,47 @@ function checkCollision(obj1, obj2) {
     return distance < radius1 + radius2;
 }
 
-function movePlayer() {
+function movePlayer(deltaTime) {
     if (gameOver || player.hp <= 0) return;
 
-    let newX = player.x;
-    let newY = player.y;
+    // Calcular aceleração baseada nas teclas pressionadas
+    let accelX = 0;
+    let accelY = 0;
 
-    if (keys.w) newY -= speed;
-    if (keys.s) newY += speed;
-    if (keys.a) newX -= speed;
-    if (keys.d) newX += speed;
+    if (keys.w) accelY -= ACCELERATION;
+    if (keys.s) accelY += ACCELERATION;
+    if (keys.a) accelX -= ACCELERATION;
+    if (keys.d) accelX += ACCELERATION;
 
-    player.x = Math.max(20, Math.min(canvas.width - 20, newX));
-    player.y = Math.max(20, Math.min(canvas.height - 20, newY));
+    // Aplicar aceleração à velocidade (usando deltaTime em segundos)
+    player.velocityX += accelX * deltaTime;
+    player.velocityY += accelY * deltaTime;
+
+    // Aplicar atrito para desacelerar gradualmente
+    const frictionX = player.velocityX > 0 ? -FRICTION : FRICTION;
+    const frictionY = player.velocityY > 0 ? -FRICTION : FRICTION;
+    player.velocityX += frictionX * deltaTime;
+    player.velocityY += frictionY * deltaTime;
+
+    // Limitar a velocidade máxima
+    const speed = Math.sqrt(player.velocityX * player.velocityX + player.velocityY * player.velocityY);
+    if (speed > MAX_SPEED) {
+        const factor = MAX_SPEED / speed;
+        player.velocityX *= factor;
+        player.velocityY *= factor;
+    }
+
+    // Se a velocidade for muito pequena, zerar para evitar movimento residual
+    if (Math.abs(player.velocityX) < 0.1) player.velocityX = 0;
+    if (Math.abs(player.velocityY) < 0.1) player.velocityY = 0;
+
+    // Atualizar posição com base na velocidade
+    player.x += player.velocityX * deltaTime;
+    player.y += player.velocityY * deltaTime;
+
+    // Limitar posição dentro do canvas
+    player.x = Math.max(20, Math.min(canvas.width - 20, player.x));
+    player.y = Math.max(20, Math.min(canvas.height - 20, player.y));
 }
 
 function checkPlayerPentagonCollisions() {
@@ -370,16 +421,14 @@ function checkPlayerItemCollisions() {
         const dx = player.x - item.x;
         const dy = player.y - item.y;
         const distance = Math.hypot(dx, dy);
-        const attractionRadius = 30; // 3x o tamanho do item (10)
+        const attractionRadius = 30;
         const itemSpeed = 5;
 
         if (distance < attractionRadius) {
-            // Item viaja em direção ao jogador
             const angle = Math.atan2(dy, dx);
             item.x += Math.cos(angle) * itemSpeed;
             item.y += Math.sin(angle) * itemSpeed;
 
-            // Verifica colisão direta com o jogador
             if (checkCollision(player, item)) {
                 socket.emit('itemCollected', {
                     itemId: item.id,
@@ -395,65 +444,72 @@ function shoot() {
     if (currentTime - lastShotTime > bulletCooldown && player.hp > 0) {
         lastShotTime = currentTime;
 
-        // Posição da arma
         const weaponLength = 30;
         const weaponX = player.x + Math.cos(player.angle) * weaponLength;
         const weaponY = player.y + Math.sin(player.angle) * weaponLength;
 
-        const bullet = {
-            x: weaponX, // Começa na posição da arma
-            y: weaponY,
-            angle: player.angle,
-            dx: Math.cos(player.angle) * bulletSpeed,
-            dy: Math.sin(player.angle) * bulletSpeed,
-            shooterId: player.id
-        };
+        const bullet = getInactiveBullet();
+        if (bullet) {
+            bullet.x = weaponX;
+            bullet.y = weaponY;
+            bullet.angle = player.angle;
+            bullet.dx = Math.cos(player.angle) * bulletSpeed;
+            bullet.dy = Math.sin(player.angle) * bulletSpeed;
+            bullet.shooterId = player.id;
+            bullet.active = true;
 
-        bullets.push(bullet);
-        
-        socket.emit('shoot', {
-            x: bullet.x,
-            y: bullet.y,
-            angle: bullet.angle
-        });
+            socket.emit('shoot', {
+                x: bullet.x,
+                y: bullet.y,
+                angle: bullet.angle
+            });
+        } else {
+            console.warn('Nenhuma bala disponível no pool!');
+        }
     }
 }
 
-function updateBullets() {
-    bullets = bullets.filter(bullet => {
-        bullet.x += bullet.dx;
-        bullet.y += bullet.dy;
+function updateBullets(deltaTime) {
+    bulletPool.forEach(bullet => {
+        if (bullet.active) {
+            bullet.x += bullet.dx * deltaTime;
+            bullet.y += bullet.dy * deltaTime;
 
-        for (let i = 0; i < pentagons.length; i++) {
-            if (checkCollision(bullet, pentagons[i])) {
-                socket.emit('bulletHitPentagon', {
-                    pentagonId: pentagons[i].id,
-                    shooterId: bullet.shooterId
-                });
-                if (pentagons[i].hp <= 1) {
-                    if (pentagons[i].behavior === 'chase') {
-                        player.purplePentagonsEliminated++;
-                    } else if (pentagons[i].behavior === 'evade') {
-                        player.yellowPentagonsEliminated++;
+            for (let i = 0; i < pentagons.length; i++) {
+                if (checkCollision(bullet, pentagons[i])) {
+                    socket.emit('bulletHitPentagon', {
+                        pentagonId: pentagons[i].id,
+                        shooterId: bullet.shooterId
+                    });
+                    if (pentagons[i].hp <= 1) {
+                        if (pentagons[i].behavior === 'chase') {
+                            player.purplePentagonsEliminated++;
+                        } else if (pentagons[i].behavior === 'evade') {
+                            player.yellowPentagonsEliminated++;
+                        }
                     }
+                    bullet.active = false;
+                    return;
                 }
-                return false;
+            }
+
+            for (let i = 0; i < players.length; i++) {
+                if (players[i].id !== bullet.shooterId && checkCollision(bullet, players[i])) {
+                    console.log(`Bullet from ${bullet.shooterId} hit player ${players[i].id}`);
+                    socket.emit('bulletHitPlayer', {
+                        targetPlayerId: players[i].id,
+                        shooterId: bullet.shooterId,
+                        damage: 20
+                    });
+                    bullet.active = false;
+                    return;
+                }
+            }
+
+            if (bullet.x < 0 || bullet.x > canvas.width || bullet.y < 0 || bullet.y > canvas.height) {
+                bullet.active = false;
             }
         }
-
-        for (let i = 0; i < players.length; i++) {
-            if (players[i].id !== bullet.shooterId && checkCollision(bullet, players[i])) {
-                console.log(`Bullet from ${bullet.shooterId} hit player ${players[i].id}`);
-                socket.emit('bulletHitPlayer', {
-                    targetPlayerId: players[i].id,
-                    shooterId: bullet.shooterId,
-                    damage: 20
-                });
-                return false;
-            }
-        }
-
-        return bullet.x >= 0 && bullet.x <= canvas.width && bullet.y >= 0 && bullet.y <= canvas.height;
     });
 }
 
@@ -552,9 +608,11 @@ canvas.addEventListener('click', (event) => {
             player.purplePentagonsEliminated = 0;
             player.x = 400;
             player.y = 300;
+            player.velocityX = 0; // Resetar velocidade ao reiniciar
+            player.velocityY = 0;
             playerName = newName || playerName;
             player.name = playerName;
-            bullets = [];
+            bulletPool.forEach(bullet => bullet.active = false);
             socket.emit('leave');
             socket.emit('join', playerName);
             console.log("Game restarted with name:", playerName);
@@ -607,7 +665,14 @@ document.addEventListener('keyup', (event) => {
     if (event.key in keys) keys[event.key] = false;
 });
 
-function gameLoop() {
+let lastTime = 0;
+
+function gameLoop(timestamp) {
+    // Calcular deltaTime em segundos
+    if (!lastTime) lastTime = timestamp;
+    const deltaTime = (timestamp - lastTime) / 1000; // Converter de ms para segundos
+    lastTime = timestamp;
+
     console.log('Game loop running - gameStarted:', gameStarted, 'gameOver:', gameOver);
     console.log('Players:', players);
     console.log('Pentagons:', pentagons);
@@ -623,20 +688,18 @@ function gameLoop() {
     if (!gameStarted) {
         drawStartScreen();
     } else {
-        // Desenhar tiros primeiro (camada inferior)
         drawBullets();
-        // Depois desenhar itens, pentágonos e jogadores (camadas superiores)
         items.forEach(item => drawItem(item));
         pentagons.forEach(p => drawPentagon(p));
         drawPlayers();
         drawScoreboard();
         drawTopScores();
         if (!gameOver) {
-            movePlayer();
+            movePlayer(deltaTime); // Passar deltaTime para o movimento
             checkPlayerPentagonCollisions();
             checkPlayerItemCollisions();
             if (player.isShooting) shoot();
-            updateBullets();
+            updateBullets(deltaTime); // Passar deltaTime para as balas
             updatePlayer();
             drawLastElimination();
         }
@@ -699,13 +762,17 @@ socket.on('items', (updatedItems) => {
 socket.on('shoot', (data) => {
     console.log('Shoot received at:', Date.now());
     if (data.id !== player.id) {
-        bullets.push({
-            x: data.x,
-            y: data.y,
-            dx: Math.cos(data.angle) * bulletSpeed,
-            dy: Math.sin(data.angle) * bulletSpeed,
-            shooterId: data.id
-        });
+        const bullet = getInactiveBullet();
+        if (bullet) {
+            bullet.x = data.x;
+            bullet.y = data.y;
+            bullet.dx = Math.cos(data.angle) * bulletSpeed;
+            bullet.dy = Math.sin(data.angle) * bulletSpeed;
+            bullet.shooterId = data.id;
+            bullet.active = true;
+        } else {
+            console.warn('Nenhuma bala disponível no pool para tiro recebido!');
+        }
     }
 });
 
@@ -725,4 +792,4 @@ socket.on('topScores', (updatedTopScores) => {
     topScores = updatedTopScores || [];
 });
 
-gameLoop();
+requestAnimationFrame(gameLoop);
