@@ -83,8 +83,19 @@ function drawPlayer(p) {
     const diameter = radius * 2;
 
     if (p.name === 'Isaque15e' && isaqueImage.complete && isaqueImage.naturalWidth > 0) {
+        // Criar um caminho circular como máscara
+        ctx.save(); // Salvar o estado atual do contexto
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip(); // Aplicar o recorte circular
+
+        // Desenhar a imagem dentro do círculo, centralizada e redimensionada
         ctx.drawImage(isaqueImage, p.x - radius, p.y - radius, diameter, diameter);
+
+        ctx.restore(); // Restaurar o estado anterior do contexto
     } else {
+        // Desenhar como círculo preenchido para outros jogadores
         ctx.beginPath();
         ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
         ctx.fillStyle = p.id === player.id ? 'blue' : 'red';
@@ -92,16 +103,19 @@ function drawPlayer(p) {
         ctx.closePath();
     }
 
+    // Barra de HP
     ctx.fillStyle = 'gray';
     ctx.fillRect(p.x - 20, p.y - 35, 40, 5);
     ctx.fillStyle = 'red';
     ctx.fillRect(p.x - 20, p.y - 35, (p.hp / 100) * 40, 5);
 
+    // Nome
     ctx.fillStyle = 'black';
     ctx.font = '12px Arial';
     ctx.textAlign = 'center';
     ctx.fillText(p.name, p.x, p.y - 45);
 
+    // Arma como círculo
     const weaponLength = 30;
     const weaponX = p.x + Math.cos(p.angle) * weaponLength;
     const weaponY = p.y + Math.sin(p.angle) * weaponLength;
