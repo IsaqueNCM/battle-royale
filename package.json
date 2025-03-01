@@ -1,20 +1,11 @@
 {
     "name": "battle-royale-frontend",
     "version": "1.0.0",
-<<<<<<< HEAD
     "description": "Frontend do jogo Batalha Real",
-    "scripts": {
-      "start": "serve public"
-    },
-    "dependencies": {
-      "serve": "^14.0.0"
-=======
-    "description": "Front-end do jogo Battle Royale",
     "scripts": {
         "start": "serve public"
     },
     "dependencies": {
-        "serve": "^14.2.1"
->>>>>>> e2901c31cec830030caa441497ea7ed3d74e28d1
+        "serve": "^14.0.0"
     }
 }
