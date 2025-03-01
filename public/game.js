@@ -81,11 +81,24 @@ function drawPlayer(p) {
 }
 
 function drawPentagon(p) {
+    const radius = p.isSmall ? 10 : 20; // Define o raio baseado no tamanho
+    const sides = 5; // Pentágono tem 5 lados
+    const angleStep = (2 * Math.PI) / sides; // Ângulo entre cada vértice
+
     ctx.beginPath();
-    ctx.arc(p.x, p.y, p.isSmall ? 10 : 20, 0, Math.PI * 2);
+    for (let i = 0; i < sides; i++) {
+        const angle = i * angleStep - Math.PI / 2; // -Math.PI/2 para alinhar o topo
+        const x = p.x + radius * Math.cos(angle);
+        const y = p.y + radius * Math.sin(angle);
+        if (i === 0) {
+            ctx.moveTo(x, y); // Primeiro ponto
+        } else {
+            ctx.lineTo(x, y); // Linhas para os próximos pontos
+        }
+    }
+    ctx.closePath(); // Fecha o pentágono
     ctx.fillStyle = p.behavior === 'chase' ? 'purple' : 'orange';
     ctx.fill();
-    ctx.closePath();
 }
 
 function drawScoreboard() {
