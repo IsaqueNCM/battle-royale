@@ -1,6 +1,8 @@
 const socket = io('https://battle-royale-backend.onrender.com');
 socket.on('connect', () => {
     console.log('Conectado ao servidor com sucesso!');
+    player.id = socket.id;
+    console.log(`Player connected with ID: ${player.id}`);
 });
 socket.on('connect_error', (error) => {
     console.error('Erro ao conectar ao servidor:', error);
@@ -42,11 +44,6 @@ let player = {
     yellowPentagonsEliminated: 0,
     purplePentagonsEliminated: 0
 };
-
-socket.on('connect', () => {
-    player.id = socket.id;
-    console.log(`Player connected with ID: ${player.id}`);
-});
 
 function drawPlayer(p) {
     ctx.beginPath();
@@ -429,6 +426,7 @@ canvas.addEventListener('click', (event) => {
             gameStarted = true;
             playerName = inputName;
             player.name = playerName;
+            console.log('Emitindo join para:', playerName);
             socket.emit('join', playerName);
             console.log("Game started with name:", playerName);
         } else {
@@ -557,6 +555,7 @@ function gameLoop() {
 }
 
 socket.on('players', (updatedPlayers) => {
+    console.log('Players recebidos:', updatedPlayers);
     players = updatedPlayers || [];
     const serverPlayer = players.find(p => p.id === player.id);
     if (serverPlayer) {
@@ -587,10 +586,12 @@ socket.on('players', (updatedPlayers) => {
 });
 
 socket.on('pentagons', (updatedPentagons) => {
+    console.log('Pentagons recebidos:', updatedPentagons);
     pentagons = updatedPentagons || [];
 });
 
 socket.on('shoot', (data) => {
+    console.log('Shoot recebido:', data);
     if (data.id !== player.id) {
         bullets.push({
             x: data.x,
@@ -602,7 +603,6 @@ socket.on('shoot', (data) => {
     }
 });
 
-// Novo evento para atualizar a última eliminação
 socket.on('playerEliminated', (data) => {
     if (gameStarted && !gameOver) {
         lastElimination = {
