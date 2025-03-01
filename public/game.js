@@ -519,6 +519,8 @@ document.addEventListener('keyup', (event) => {
 });
 
 function gameLoop() {
+    console.log('Players no loop:', players);
+    console.log('Pentagons no loop:', pentagons);
     if (player.hp <= 0 && !gameOver && gameStarted) {
         gameOver = true;
         console.log("Game Over triggered: HP <= 0");
