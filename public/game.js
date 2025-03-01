@@ -11,11 +11,30 @@ socket.on('connect_error', (error) => {
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// Carregar a imagem para Isaque15e da pasta skins
-const isaqueImage = new Image();
-isaqueImage.src = './skins/isaque15e.png'; // Caminho relativo para a pasta skins
-isaqueImage.onload = () => console.log('Imagem de Isaque15e carregada com sucesso');
-isaqueImage.onerror = () => console.error('Erro ao carregar a imagem de Isaque15e');
+// Mapa para armazenar as skins carregadas
+const skinImages = new Map();
+
+function loadSkin(name) {
+    if (skinImages.has(name)) return; // Skin já carregada
+    const img = new Image();
+    img.src = `/skins/${name.toLowerCase()}.png`; // Assumindo que as skins são PNGs
+    img.onload = () => {
+        console.log(`Skin ${name} carregada com sucesso`);
+        skinImages.set(name, img);
+    };
+    img.onerror = (e) => console.error(`Erro ao carregar skin ${name}:`, e);
+}
+
+// Carregar skins disponíveis ao iniciar (opcional, pode ser chamado dinamicamente)
+socket.on('connect', () => {
+    // Solicitar lista de skins ao servidor (se o endpoint /skins/list for usado)
+    fetch('/skins/list')
+        .then(response => response.json())
+        .then(skins => {
+            skins.forEach(skin => loadSkin(skin.name));
+        })
+        .catch(err => console.error('Erro ao carregar lista de skins:', err));
+});
 
 let players = [];
 let pentagons = [];
@@ -82,20 +101,16 @@ function drawPlayer(p) {
     const radius = 20;
     const diameter = radius * 2;
 
-    if (p.name === 'Isaque15e' && isaqueImage.complete && isaqueImage.naturalWidth > 0) {
-        // Criar um caminho circular como máscara
-        ctx.save(); // Salvar o estado atual do contexto
+    const skin = skinImages.get(p.name);
+    if (skin && skin.complete && skin.naturalWidth > 0) {
+        ctx.save();
         ctx.beginPath();
         ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
         ctx.closePath();
-        ctx.clip(); // Aplicar o recorte circular
-
-        // Desenhar a imagem dentro do círculo, centralizada e redimensionada
-        ctx.drawImage(isaqueImage, p.x - radius, p.y - radius, diameter, diameter);
-
-        ctx.restore(); // Restaurar o estado anterior do contexto
+        ctx.clip();
+        ctx.drawImage(skin, p.x - radius, p.y - radius, diameter, diameter);
+        ctx.restore();
     } else {
-        // Desenhar como círculo preenchido para outros jogadores
         ctx.beginPath();
         ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
         ctx.fillStyle = p.id === player.id ? 'blue' : 'red';
@@ -103,19 +118,16 @@ function drawPlayer(p) {
         ctx.closePath();
     }
 
-    // Barra de HP
     ctx.fillStyle = 'gray';
     ctx.fillRect(p.x - 20, p.y - 35, 40, 5);
     ctx.fillStyle = 'red';
     ctx.fillRect(p.x - 20, p.y - 35, (p.hp / 100) * 40, 5);
 
-    // Nome
     ctx.fillStyle = 'black';
     ctx.font = '12px Arial';
     ctx.textAlign = 'center';
     ctx.fillText(p.name, p.x, p.y - 45);
 
-    // Arma como círculo
     const weaponLength = 30;
     const weaponX = p.x + Math.cos(p.angle) * weaponLength;
     const weaponY = p.y + Math.sin(p.angle) * weaponLength;
@@ -594,6 +606,7 @@ canvas.addEventListener('click', (event) => {
             gameStarted = true;
             playerName = inputName;
             player.name = playerName;
+            loadSkin(playerName); // Carregar a skin do jogador atual
             console.log('Emitindo join para:', playerName);
             socket.emit('join', playerName);
             console.log("Game started with name:", playerName);
@@ -633,6 +646,7 @@ canvas.addEventListener('click', (event) => {
             player.velocityY = 0;
             playerName = newName || playerName;
             player.name = playerName;
+            loadSkin(playerName); // Carregar a skin do jogador ao reiniciar
             bulletPool.forEach(bullet => bullet.active = false);
             socket.emit('leave');
             socket.emit('join', playerName);
@@ -757,6 +771,8 @@ socket.on('players', (updatedPlayers) => {
                 console.log(`Player ${player.name} eliminated ${newEliminations} player(s)`);
             }
         }
+        // Carregar skin do jogador atual
+        loadSkin(player.name);
     } else if (!gameOver && !isRestarting && gameStarted) {
         gameOver = true;
         player.hp = 0;
@@ -810,5 +826,3 @@ socket.on('topScores', (updatedTopScores) => {
     console.log('Top scores recebidos:', updatedTopScores);
     topScores = updatedTopScores || [];
 });
-
-requestAnimationFrame(gameLoop);
