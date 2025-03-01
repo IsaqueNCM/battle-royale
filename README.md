@@ -8,20 +8,6 @@ O projeto é dividido em duas partes principais:
 - **Backend**: Hospedado em `battle-royale-backend` (atualmente em Render) e responsável por gerenciar o estado do jogo, sincronizar jogadores e pentágonos, e atualizar pontuações.
 - **Frontend**: Hospedado em `BATTLE-ROYALE` (atualmente em Vercel) e responsável pela interface do usuário, controles e renderização gráfica.
 
-## Hierarquia de Pastas
-BATTLE-ROYALE
-├── battle-royale-backend
-│   ├── package.json       # Configuração do backend principal (Render)
-│   └── server.js          # Código do servidor principal (Render)
-├── public                 # Pasta do frontend
-│   ├── game.js            # Lógica do cliente (controles, renderização)
-│   ├── index.html         # Estrutura HTML do jogo
-│   └── style.css          # Estilos visuais do jogo
-├── server                 # Backend alternativo (local)
-│   ├── package.json       # Configuração do backend alternativo
-│   └── server.js          # Código do servidor alternativo
-└── package.json           # Configuração do frontend (raiz do projeto)
-
 ### Observações
 - A pasta `vattle-royale` é a pasta principal e está hospedada em `https://batalha-real.vercel.app`.
 - A pasta `battle-royale-backend` é o backend principal hospedado em `https://battle-royale-backend.onrender.com`.
