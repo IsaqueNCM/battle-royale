@@ -106,15 +106,15 @@ function drawPentagon(p) {
 }
 
 function drawItem(item) {
-    const size = 20; // Aumentado de 10 para 20
+    const radius = 10; // Raio de 10 para um diâmetro de 20
     ctx.beginPath();
-    ctx.rect(item.x - size / 2, item.y - size / 2, size, size);
+    ctx.arc(item.x, item.y, radius, 0, Math.PI * 2);
     ctx.fillStyle = 'red';
     ctx.fill();
     ctx.closePath();
 
     ctx.fillStyle = 'white';
-    ctx.font = '900 24px Arial'; // Aumentado de "bold 12px" para "900 24px" (muito maior e mais grosso)
+    ctx.font = '900 24px Arial'; // Mantendo o tamanho e peso do "+"
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('+', item.x, item.y);
