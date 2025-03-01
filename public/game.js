@@ -69,13 +69,13 @@ function drawPlayer(p) {
     ctx.textAlign = 'center';
     ctx.fillText(p.name, p.x, p.y - 45);
 
-    // Arma como círculo maior
+    // Arma como círculo menor (metade do tamanho anterior)
     const weaponLength = 30;
     const weaponX = p.x + Math.cos(p.angle) * weaponLength;
     const weaponY = p.y + Math.sin(p.angle) * weaponLength;
     
     ctx.beginPath();
-    ctx.arc(weaponX, weaponY, 15, 0, Math.PI * 2); // Círculo maior
+    ctx.arc(weaponX, weaponY, 7.5, 0, Math.PI * 2); // Raio reduzido de 15 para 7.5
     ctx.fillStyle = 'red';
     ctx.fill();
     ctx.closePath();
@@ -98,7 +98,7 @@ function drawPentagon(p) {
         }
     }
     ctx.closePath();
-    ctx.fillStyle = 'red'; // Todos pentágonos vermelhos
+    ctx.fillStyle = p.behavior === 'chase' ? 'purple' : 'orange'; // Roxo para chase, laranja para evade
     ctx.fill();
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 2;
