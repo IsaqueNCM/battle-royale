@@ -99,6 +99,10 @@ function drawPentagon(p) {
     ctx.closePath(); // Fecha o pentágono
     ctx.fillStyle = p.behavior === 'chase' ? 'purple' : 'orange';
     ctx.fill();
+    // Adiciona contorno preto para verificar os lados
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 2;
+    ctx.stroke();
 }
 
 function drawScoreboard() {
