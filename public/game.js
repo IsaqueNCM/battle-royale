@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
         angle: 0,
         isShooting: false,
         score: 0,
-        hp: 100,
+        hp: 200, // Aumentado de 100 para 200
         playersEliminated: 0,
         yellowPentagonsEliminated: 0,
         purplePentagonsEliminated: 0
@@ -138,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillStyle = 'gray';
         ctx.fillRect(p.x - 20, p.y - 35, 40, 5);
         ctx.fillStyle = 'red';
-        ctx.fillRect(p.x - 20, p.y - 35, (p.hp / 100) * 40, 5);
+        ctx.fillRect(p.x - 20, p.y - 35, (p.hp / 200) * 40, 5); // Ajustado de 100 para 200
 
         ctx.fillStyle = 'black';
         ctx.font = '12px Arial';
@@ -457,7 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     socket.emit('playerDamaged', {
                         playerId: player.id,
-                        damage: 10
+                        damage: 5 // Reduzido de 10 para 5
                     });
 
                     lastCollisionTime = currentTime;
@@ -549,7 +549,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         socket.emit('bulletHitPlayer', {
                             targetPlayerId: players[i].id,
                             shooterId: bullet.shooterId,
-                            damage: 20
+                            damage: 15 // Reduzido de 20 para 15
                         });
                         bullet.active = false;
                         return;
@@ -652,7 +652,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 clickY >= canvas.height / 2 + 130 && clickY <= canvas.height / 2 + 170) {
                 gameOver = false;
                 isRestarting = true;
-                player.hp = 100;
+                player.hp = 200; // Ajustado para o novo valor inicial
                 player.score = 0;
                 player.playersEliminated = 0;
                 player.yellowPentagonsEliminated = 0;
