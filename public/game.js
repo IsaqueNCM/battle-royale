@@ -19,7 +19,7 @@ let isRestarting = false;
 let gameStarted = false;
 let playerName = "Jogador" + Math.floor(Math.random() * 1000);
 let inputName = playerName;
-let topScores = []; // Armazena os 3 melhores scores
+let topScores = [];
 
 let lastElimination = { killer: '', victim: '', timestamp: 0 };
 const eliminationDisplayTime = 5000;
@@ -30,6 +30,11 @@ const bulletCooldown = 500;
 const collisionCooldown = 1000;
 let lastShotTime = 0;
 let lastCollisionTime = 0;
+let lastMoveUpdate = 0;
+const moveUpdateInterval = 50; // 50ms
+let pendingShots = [];
+let lastShotEmit = 0;
+const shotEmitInterval = 100; // 100ms
 
 const keys = { w: false, a: false, s: false, d: false };
 
@@ -343,7 +348,13 @@ function shoot() {
         };
 
         bullets.push(bullet);
-        socket.emit('shoot', { x: bullet.x, y: bullet.y, angle: bullet.angle });
+        pendingShots.push(bullet);
+
+        if (currentTime - lastShotEmit >= shotEmitInterval) {
+            socket.emit('shoot', pendingShots);
+            pendingShots = [];
+            lastShotEmit = currentTime;
+        }
     }
 }
 
@@ -390,8 +401,10 @@ function drawPlayers() {
 }
 
 function updatePlayer() {
-    if (player.hp > 0 && player.id) {
+    const now = Date.now();
+    if (player.hp > 0 && player.id && now - lastMoveUpdate >= moveUpdateInterval) {
         socket.emit('move', { x: player.x, y: player.y, angle: player.angle });
+        lastMoveUpdate = now;
     }
 }
 
@@ -421,6 +434,7 @@ canvas.addEventListener('mousemove', (event) => {
 
 canvas.addEventListener('mousedown', (event) => {
     if (event.button === 0 && !gameOver && player.hp > 0) {
+        console.log('Mouse down at:', Date.now());
         player.isShooting = true;
     }
 });
@@ -443,7 +457,7 @@ canvas.addEventListener('click', (event) => {
             playerName = inputName;
             player.name = playerName;
             console.log('Emitindo join para:', playerName);
-            socket.emit('join', playerName); // Só agora emitimos o 'join'
+            socket.emit('join', playerName);
             console.log("Game started with name:", playerName);
         } else {
             const socialLinks = [
@@ -481,7 +495,7 @@ canvas.addEventListener('click', (event) => {
             player.name = playerName;
             bullets = [];
             socket.emit('leave');
-            socket.emit('join', playerName); // Emite 'join' ao reiniciar
+            socket.emit('join', playerName);
             console.log("Game restarted with name:", playerName);
             keys.w = false;
             keys.a = false;
@@ -571,6 +585,12 @@ socket.on('players', (updatedPlayers) => {
     players = updatedPlayers || [];
     const serverPlayer = players.find(p => p.id === player.id);
     if (serverPlayer) {
+        const dx = serverPlayer.x - player.x;
+        const dy = serverPlayer.y - player.y;
+        if (Math.hypot(dx, dy) > 20) {
+            player.x = serverPlayer.x;
+            player.y = serverPlayer.y;
+        }
         const previousHp = player.hp;
         player.hp = serverPlayer.hp;
         player.score = serverPlayer.score;
@@ -603,7 +623,7 @@ socket.on('pentagons', (updatedPentagons) => {
 });
 
 socket.on('shoot', (data) => {
-    console.log('Shoot recebido:', data);
+    console.log('Shoot received at:', Date.now());
     if (data.id !== player.id) {
         bullets.push({
             x: data.x,
