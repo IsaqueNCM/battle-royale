@@ -1,4 +1,4 @@
-const socket = io();
+const socket = io('https://battle-royale-backend.onrender.com');
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 

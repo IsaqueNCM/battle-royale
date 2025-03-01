@@ -1,15 +1,11 @@
 {
-    "name": "battle-royale",
+    "name": "battle-royale-frontend",
     "version": "1.0.0",
-    "description": "Um jogo de battle royale",
-    "main": "server.js",
+    "description": "Front-end do jogo Battle Royale",
     "scripts": {
-        "start": "node server/server.js"
+        "start": "serve public"
     },
     "dependencies": {
-        "express": "^4.17.1",
-        "socket.io": "^4.8.1"
-    },
-    "author": "",
-    "license": "ISC"
+        "serve": "^14.2.1"
+    }
 }

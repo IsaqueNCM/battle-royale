@@ -1,0 +1,15 @@
+{
+    "name": "battle-royale-backend",
+    "version": "1.0.0",
+    "description": "Servidor do jogo Battle Royale",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js"
+    },
+    "dependencies": {
+        "express": "^4.17.1",
+        "socket.io": "^4.8.1"
+    },
+    "author": "",
+    "license": "ISC"
+}
