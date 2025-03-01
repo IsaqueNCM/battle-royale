@@ -14,7 +14,10 @@ const ctx = canvas.getContext('2d');
 let players = [];
 let bullets = [];
 let pentagons = [];
+<<<<<<< HEAD
 let items = []; // Novo array para itens especiais
+=======
+>>>>>>> e2901c31cec830030caa441497ea7ed3d74e28d1
 let gameOver = false;
 let isRestarting = false;
 let gameStarted = false;
@@ -105,6 +108,7 @@ function drawPentagon(p) {
     ctx.stroke();
 }
 
+<<<<<<< HEAD
 function drawItem(item) {
     const size = 10; // Mesmo tamanho do pentágono pequeno
     ctx.beginPath();
@@ -120,6 +124,8 @@ function drawItem(item) {
     ctx.fillText('+', item.x, item.y);
 }
 
+=======
+>>>>>>> e2901c31cec830030caa441497ea7ed3d74e28d1
 function drawScoreboard() {
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
     ctx.fillRect(canvas.width - 150, 10, 140, 200);
@@ -302,8 +308,13 @@ function checkCollision(obj1, obj2) {
     const dx = obj1.x - obj2.x;
     const dy = obj1.y - obj2.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
+<<<<<<< HEAD
     const radius1 = obj1.isSmall ? 10 : (obj1.shooterId ? 5 : (obj1.type === 'heal' ? 5 : 20));
     const radius2 = obj2.isSmall ? 10 : (obj2.shooterId ? 5 : (obj2.type === 'heal' ? 5 : 20));
+=======
+    const radius1 = obj1.isSmall ? 10 : (obj1.shooterId ? 5 : 20);
+    const radius2 = obj2.isSmall ? 10 : (obj2.shooterId ? 5 : 20);
+>>>>>>> e2901c31cec830030caa441497ea7ed3d74e28d1
     return distance < radius1 + radius2;
 }
 
@@ -365,6 +376,7 @@ function checkPlayerPentagonCollisions() {
     });
 }
 
+<<<<<<< HEAD
 function checkPlayerItemCollisions() {
     items.forEach(item => {
         const dx = player.x - item.x;
@@ -390,6 +402,8 @@ function checkPlayerItemCollisions() {
     });
 }
 
+=======
+>>>>>>> e2901c31cec830030caa441497ea7ed3d74e28d1
 function shoot() {
     const currentTime = Date.now();
     if (currentTime - lastShotTime > bulletCooldown && player.hp > 0) {
@@ -607,7 +621,10 @@ function gameLoop() {
     console.log('Game loop running - gameStarted:', gameStarted, 'gameOver:', gameOver);
     console.log('Players:', players);
     console.log('Pentagons:', pentagons);
+<<<<<<< HEAD
     console.log('Items:', items);
+=======
+>>>>>>> e2901c31cec830030caa441497ea7ed3d74e28d1
     
     if (player.hp <= 0 && !gameOver && gameStarted) {
         gameOver = true;
@@ -621,14 +638,20 @@ function gameLoop() {
     } else {
         drawPlayers();
         pentagons.forEach(p => drawPentagon(p));
+<<<<<<< HEAD
         items.forEach(item => drawItem(item)); // Desenha os itens
+=======
+>>>>>>> e2901c31cec830030caa441497ea7ed3d74e28d1
         drawBullets();
         drawScoreboard();
         drawTopScores();
         if (!gameOver) {
             movePlayer();
             checkPlayerPentagonCollisions();
+<<<<<<< HEAD
             checkPlayerItemCollisions(); // Verifica colisões com itens
+=======
+>>>>>>> e2901c31cec830030caa441497ea7ed3d74e28d1
             if (player.isShooting) shoot();
             updateBullets();
             updatePlayer();
@@ -648,8 +671,14 @@ socket.on('players', (updatedPlayers) => {
         const dx = serverPlayer.x - player.x;
         const dy = serverPlayer.y - player.y;
         const distance = Math.hypot(dx, dy);
+<<<<<<< HEAD
         if (distance > 50) {
             player.x += dx * 0.1;
+=======
+        if (distance > 50) { // Aumentado de 20 para 50 para maior tolerância
+            // Interpolação suave em vez de correção direta
+            player.x += dx * 0.1; // Move 10% da diferença por frame
+>>>>>>> e2901c31cec830030caa441497ea7ed3d74e28d1
             player.y += dy * 0.1;
             player.x = Math.max(20, Math.min(canvas.width - 20, player.x));
             player.y = Math.max(20, Math.min(canvas.height - 20, player.y));
@@ -685,11 +714,14 @@ socket.on('pentagons', (updatedPentagons) => {
     pentagons = updatedPentagons || [];
 });
 
+<<<<<<< HEAD
 socket.on('items', (updatedItems) => {
     console.log('Items recebidos:', updatedItems);
     items = updatedItems || [];
 });
 
+=======
+>>>>>>> e2901c31cec830030caa441497ea7ed3d74e28d1
 socket.on('shoot', (data) => {
     console.log('Shoot received at:', Date.now());
     if (data.id !== player.id) {
@@ -719,4 +751,8 @@ socket.on('topScores', (updatedTopScores) => {
     topScores = updatedTopScores || [];
 });
 
+<<<<<<< HEAD
 gameLoop();
+=======
+gameLoop();
+>>>>>>> e2901c31cec830030caa441497ea7ed3d74e28d1
