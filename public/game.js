@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function loadSkin(url) {
         if (skinImages.has(url)) return; // Skin já carregada
+        console.log(`Tentando carregar skin de: ${url}`);
         const img = new Image();
         img.src = url;
         img.onload = () => {
@@ -117,6 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Verificar se existe uma skin ativa para este player no servidor
         const skinUrl = activePlayerSkins.get(p.id);
+        console.log(`Desenhando jogador ${p.name} (ID: ${p.id}) com skin: ${skinUrl || 'Nenhuma'}`);
         if (skinUrl && skinImages.has(skinUrl) && skinImages.get(skinUrl) && skinImages.get(skinUrl).complete && skinImages.get(skinUrl).naturalWidth > 0) {
             ctx.save();
             ctx.beginPath();
@@ -793,7 +795,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.log(`Player ${player.name} eliminated ${newEliminations} player(s)`);
                 }
             }
-            loadSkin(player.name); // Carregar a skin do jogador local
+            // Carregar a skin do jogador local, se houver
+            const skinFile = `${playerName.toLowerCase()}.png`;
+            fetch(`/skins/${skinFile}`)
+                .then(response => {
+                    if (response.ok) {
+                        loadSkin(`/skins/${skinFile}`);
+                    } else {
+                        console.warn(`Nenhuma skin encontrada para ${playerName}`);
+                    }
+                })
+                .catch(err => console.error(`Erro ao verificar skin para ${playerName}:`, err));
         } else if (!gameOver && !isRestarting && gameStarted) {
             gameOver = true;
             player.hp = 0;
