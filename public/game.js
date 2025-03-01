@@ -395,9 +395,14 @@ function shoot() {
     if (currentTime - lastShotTime > bulletCooldown && player.hp > 0) {
         lastShotTime = currentTime;
 
+        // Posição da arma
+        const weaponLength = 30;
+        const weaponX = player.x + Math.cos(player.angle) * weaponLength;
+        const weaponY = player.y + Math.sin(player.angle) * weaponLength;
+
         const bullet = {
-            x: player.x,
-            y: player.y,
+            x: weaponX, // Começa na posição da arma
+            y: weaponY,
             angle: player.angle,
             dx: Math.cos(player.angle) * bulletSpeed,
             dy: Math.sin(player.angle) * bulletSpeed,
@@ -618,10 +623,12 @@ function gameLoop() {
     if (!gameStarted) {
         drawStartScreen();
     } else {
-        drawPlayers();
-        pentagons.forEach(p => drawPentagon(p));
-        items.forEach(item => drawItem(item));
+        // Desenhar tiros primeiro (camada inferior)
         drawBullets();
+        // Depois desenhar itens, pentágonos e jogadores (camadas superiores)
+        items.forEach(item => drawItem(item));
+        pentagons.forEach(p => drawPentagon(p));
+        drawPlayers();
         drawScoreboard();
         drawTopScores();
         if (!gameOver) {
