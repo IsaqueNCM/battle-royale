@@ -53,7 +53,7 @@ let player = {
 function drawPlayer(p) {
     ctx.beginPath();
     ctx.arc(p.x, p.y, 20, 0, Math.PI * 2);
-    ctx.fillStyle = p.id === player.id ? 'blue' : '#4169E1'; // Azul para jogador atual, azul royal para outros
+    ctx.fillStyle = p.id === player.id ? 'blue' : 'red'; // Azul para jogador atual, vermelho para inimigos
     ctx.fill();
     ctx.closePath();
 
@@ -69,14 +69,14 @@ function drawPlayer(p) {
     ctx.textAlign = 'center';
     ctx.fillText(p.name, p.x, p.y - 45);
 
-    // Arma como círculo menor (metade do tamanho anterior)
+    // Arma como círculo
     const weaponLength = 30;
     const weaponX = p.x + Math.cos(p.angle) * weaponLength;
     const weaponY = p.y + Math.sin(p.angle) * weaponLength;
     
     ctx.beginPath();
-    ctx.arc(weaponX, weaponY, 7.5, 0, Math.PI * 2); // Raio reduzido de 15 para 7.5
-    ctx.fillStyle = 'red';
+    ctx.arc(weaponX, weaponY, 7.5, 0, Math.PI * 2);
+    ctx.fillStyle = p.id === player.id ? 'red' : 'black'; // Vermelho para jogador atual, preto para inimigos
     ctx.fill();
     ctx.closePath();
 }
