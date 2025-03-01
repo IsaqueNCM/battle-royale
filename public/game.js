@@ -81,25 +81,24 @@ function drawPlayer(p) {
 }
 
 function drawPentagon(p) {
-    const radius = p.isSmall ? 10 : 20; // Define o raio baseado no tamanho
-    const sides = 5; // Pentágono tem 5 lados
-    const angleStep = (2 * Math.PI) / sides; // Ângulo entre cada vértice
+    const radius = p.isSmall ? 10 : 20;
+    const sides = 5;
+    const angleStep = (2 * Math.PI) / sides;
 
     ctx.beginPath();
     for (let i = 0; i < sides; i++) {
-        const angle = i * angleStep - Math.PI / 2; // -Math.PI/2 para alinhar o topo
+        const angle = i * angleStep - Math.PI / 2;
         const x = p.x + radius * Math.cos(angle);
         const y = p.y + radius * Math.sin(angle);
         if (i === 0) {
-            ctx.moveTo(x, y); // Primeiro ponto
+            ctx.moveTo(x, y);
         } else {
-            ctx.lineTo(x, y); // Linhas para os próximos pontos
+            ctx.lineTo(x, y);
         }
     }
-    ctx.closePath(); // Fecha o pentágono
+    ctx.closePath();
     ctx.fillStyle = p.behavior === 'chase' ? 'purple' : 'orange';
     ctx.fill();
-    // Adiciona contorno preto para verificar os lados
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 2;
     ctx.stroke();
@@ -604,9 +603,13 @@ socket.on('players', (updatedPlayers) => {
     if (serverPlayer) {
         const dx = serverPlayer.x - player.x;
         const dy = serverPlayer.y - player.y;
-        if (Math.hypot(dx, dy) > 20) {
-            player.x = serverPlayer.x;
-            player.y = serverPlayer.y;
+        const distance = Math.hypot(dx, dy);
+        if (distance > 50) { // Aumentado de 20 para 50 para maior tolerância
+            // Interpolação suave em vez de correção direta
+            player.x += dx * 0.1; // Move 10% da diferença por frame
+            player.y += dy * 0.1;
+            player.x = Math.max(20, Math.min(canvas.width - 20, player.x));
+            player.y = Math.max(20, Math.min(canvas.height - 20, player.y));
         }
         const previousHp = player.hp;
         player.hp = serverPlayer.hp;
