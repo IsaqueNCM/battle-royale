@@ -8,8 +8,17 @@ socket.on('connect_error', (error) => {
     console.error('Erro ao conectar ao servidor:', error);
 });
 
+// Verificar se o canvas existe e obter o contexto
 const canvas = document.getElementById('gameCanvas');
+if (!canvas) {
+    console.error('Canvas não encontrado! Verifique o HTML (id="gameCanvas")');
+    return; // Impede execução se o canvas não existir
+}
 const ctx = canvas.getContext('2d');
+if (!ctx) {
+    console.error('Não foi possível obter o contexto 2d do canvas');
+    return; // Impede execução se o contexto falhar
+}
 
 // Mapa para armazenar as skins carregadas
 const skinImages = new Map();
@@ -22,14 +31,20 @@ function loadSkin(name) {
         console.log(`Skin ${name} carregada com sucesso`);
         skinImages.set(name, img);
     };
-    img.onerror = (e) => console.error(`Erro ao carregar skin ${name}:`, e);
+    img.onerror = (e) => {
+        console.error(`Erro ao carregar skin ${name}:`, e);
+        skinImages.set(name, null); // Marca como falha para evitar tentativas repetidas
+    };
 }
 
 // Carregar skins disponíveis ao iniciar (opcional, pode ser chamado dinamicamente)
 socket.on('connect', () => {
     // Solicitar lista de skins ao servidor (se o endpoint /skins/list for usado)
     fetch('/skins/list')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
+            return response.json();
+        })
         .then(skins => {
             skins.forEach(skin => loadSkin(skin.name));
         })
@@ -606,7 +621,7 @@ canvas.addEventListener('click', (event) => {
             gameStarted = true;
             playerName = inputName;
             player.name = playerName;
-            loadSkin(playerName); // Carregar a skin do jogador atual
+            loadSkin(playerName);
             console.log('Emitindo join para:', playerName);
             socket.emit('join', playerName);
             console.log("Game started with name:", playerName);
@@ -646,7 +661,7 @@ canvas.addEventListener('click', (event) => {
             player.velocityY = 0;
             playerName = newName || playerName;
             player.name = playerName;
-            loadSkin(playerName); // Carregar a skin do jogador ao reiniciar
+            loadSkin(playerName);
             bulletPool.forEach(bullet => bullet.active = false);
             socket.emit('leave');
             socket.emit('join', playerName);
@@ -703,44 +718,51 @@ document.addEventListener('keyup', (event) => {
 let lastTime = performance.now();
 
 function gameLoop(timestamp) {
-    const deltaTime = Math.min((timestamp - lastTime) / 1000, 0.1);
-    lastTime = timestamp;
+    try {
+        const deltaTime = Math.min((timestamp - lastTime) / 1000, 0.1);
+        lastTime = timestamp;
 
-    console.log('Game loop running - gameStarted:', gameStarted, 'gameOver:', gameOver);
-    console.log('Players:', players);
-    console.log('Pentagons:', pentagons);
-    console.log('Items:', items);
-    
-    if (player.hp <= 0 && !gameOver && gameStarted) {
-        gameOver = true;
-        console.log("Game Over triggered: HP <= 0");
-    }
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    if (!gameStarted) {
-        drawStartScreen();
-    } else {
-        drawBullets();
-        items.forEach(item => drawItem(item));
-        pentagons.forEach(p => drawPentagon(p));
-        drawPlayers();
-        drawScoreboard();
-        drawTopScores();
-        if (!gameOver) {
-            movePlayer(deltaTime);
-            checkPlayerPentagonCollisions();
-            checkPlayerItemCollisions();
-            if (player.isShooting) shoot();
-            updateBullets(deltaTime);
-            updatePlayer();
-            drawLastElimination();
+        console.log('Game loop running - gameStarted:', gameStarted, 'gameOver:', gameOver);
+        console.log('Players:', players);
+        console.log('Pentagons:', pentagons);
+        console.log('Items:', items);
+        
+        if (player.hp <= 0 && !gameOver && gameStarted) {
+            gameOver = true;
+            console.log("Game Over triggered: HP <= 0");
         }
-        if (gameOver) drawGameOver();
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (!gameStarted) {
+            drawStartScreen();
+        } else {
+            drawBullets();
+            items.forEach(item => drawItem(item));
+            pentagons.forEach(p => drawPentagon(p));
+            drawPlayers();
+            drawScoreboard();
+            drawTopScores();
+            if (!gameOver) {
+                movePlayer(deltaTime);
+                checkPlayerPentagonCollisions();
+                checkPlayerItemCollisions();
+                if (player.isShooting) shoot();
+                updateBullets(deltaTime);
+                updatePlayer();
+                drawLastElimination();
+            }
+            if (gameOver) drawGameOver();
+        }
+    } catch (error) {
+        console.error('Erro no gameLoop:', error);
     }
 
     requestAnimationFrame(gameLoop);
 }
+
+// Iniciar o gameLoop imediatamente, mesmo sem skins
+requestAnimationFrame(gameLoop);
 
 socket.on('players', (updatedPlayers) => {
     console.log('Players recebidos:', updatedPlayers);
@@ -771,7 +793,6 @@ socket.on('players', (updatedPlayers) => {
                 console.log(`Player ${player.name} eliminated ${newEliminations} player(s)`);
             }
         }
-        // Carregar skin do jogador atual
         loadSkin(player.name);
     } else if (!gameOver && !isRestarting && gameStarted) {
         gameOver = true;
