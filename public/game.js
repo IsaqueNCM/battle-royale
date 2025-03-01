@@ -7,6 +7,7 @@ socket.on('connect', () => {
 socket.on('connect_error', (error) => {
     console.error('Erro ao conectar ao servidor:', error);
 });
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
@@ -517,8 +518,10 @@ document.addEventListener('keyup', (event) => {
 });
 
 function gameLoop() {
-    console.log('Players no loop:', players);
-    console.log('Pentagons no loop:', pentagons);
+    console.log('Game loop running - gameStarted:', gameStarted, 'gameOver:', gameOver);
+    console.log('Players:', players);
+    console.log('Pentagons:', pentagons);
+    
     if (player.hp <= 0 && !gameOver && gameStarted) {
         gameOver = true;
         console.log("Game Over triggered: HP <= 0");
@@ -526,28 +529,21 @@ function gameLoop() {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    drawPlayers();
-    pentagons.forEach(p => drawPentagon(p));
-    drawBullets();
-    drawScoreboard();
-    if (gameStarted && !gameOver) drawLastElimination();
-
     if (!gameStarted) {
         drawStartScreen();
     } else {
+        drawPlayers();
+        pentagons.forEach(p => drawPentagon(p));
+        drawBullets();
+        drawScoreboard();
         if (!gameOver) {
             movePlayer();
             checkPlayerPentagonCollisions();
             if (player.isShooting) shoot();
             updateBullets();
             updatePlayer();
+            drawLastElimination();
         }
-
-        drawPlayers();
-        pentagons.forEach(p => drawPentagon(p));
-        drawBullets();
-        drawScoreboard();
-        if (gameStarted && !gameOver) drawLastElimination();
         if (gameOver) drawGameOver();
     }
 
@@ -574,7 +570,7 @@ socket.on('players', (updatedPlayers) => {
                 console.log(`Player ${player.name} eliminated ${newEliminations} player(s)`);
             }
         }
-    } else if (!gameOver && !isRestarting) {
+    } else if (!gameOver && !isRestarting && gameStarted) {
         gameOver = true;
         player.hp = 0;
         console.log("Game Over triggered: Player not found in server list (destroyed)");
