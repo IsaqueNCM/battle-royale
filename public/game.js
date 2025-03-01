@@ -22,34 +22,32 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    // Mapa para armazenar as skins carregadas
+    // Mapa para armazenar as skins carregadas (local e remotas)
     const skinImages = new Map();
+    const activePlayerSkins = new Map(); // Armazena skins ativas recebidas do servidor (playerId -> skin URL)
 
-    function loadSkin(name) {
-        if (skinImages.has(name)) return; // Skin já carregada
+    function loadSkin(url) {
+        if (skinImages.has(url)) return; // Skin já carregada
         const img = new Image();
-        img.src = `/skins/${name.toLowerCase()}.png`; // Caminho relativo para skins em public/skins
+        img.src = url;
         img.onload = () => {
-            console.log(`Skin ${name} carregada com sucesso`);
-            skinImages.set(name, img);
+            console.log(`Skin ${url} carregada com sucesso`);
+            skinImages.set(url, img);
         };
         img.onerror = (e) => {
-            console.error(`Erro ao carregar skin ${name}:`, e);
-            skinImages.set(name, null); // Marca como falha para evitar tentativas repetidas
+            console.error(`Erro ao carregar skin ${url}:`, e);
+            skinImages.set(url, null); // Marca como falha para evitar tentativas repetidas
         };
     }
 
-    // Carregar skins disponíveis ao iniciar (opcional, não bloqueante)
-    socket.on('connect', () => {
-        fetch('/skins/list')
-            .then(response => {
-                if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
-                return response.json();
-            })
-            .then(skins => {
-                skins.forEach(skin => loadSkin(skin.name));
-            })
-            .catch(err => console.warn('Erro ao carregar lista de skins, prosseguindo sem skins:', err));
+    // Receber skins ativas do servidor
+    socket.on('playerSkins', (skins) => {
+        console.log('Skins ativas recebidas:', skins);
+        activePlayerSkins.clear();
+        Object.entries(skins).forEach(([playerId, skinUrl]) => {
+            activePlayerSkins.set(playerId, skinUrl);
+            if (skinUrl) loadSkin(skinUrl); // Carregar a skin se existir
+        });
     });
 
     let players = [];
@@ -117,14 +115,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const radius = 20;
         const diameter = radius * 2;
 
-        const skin = skinImages.get(p.name);
-        if (skin && skin.complete && skin.naturalWidth > 0) {
+        // Verificar se existe uma skin ativa para este player no servidor
+        const skinUrl = activePlayerSkins.get(p.id);
+        if (skinUrl && skinImages.has(skinUrl) && skinImages.get(skinUrl) && skinImages.get(skinUrl).complete && skinImages.get(skinUrl).naturalWidth > 0) {
             ctx.save();
             ctx.beginPath();
             ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
             ctx.closePath();
             ctx.clip();
-            ctx.drawImage(skin, p.x - radius, p.y - radius, diameter, diameter);
+            ctx.drawImage(skinImages.get(skinUrl), p.x - radius, p.y - radius, diameter, diameter);
             ctx.restore();
         } else {
             ctx.beginPath();
@@ -622,7 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 gameStarted = true;
                 playerName = inputName;
                 player.name = playerName;
-                loadSkin(playerName);
+                loadSkin(playerName); // Carregar a skin do jogador local
                 console.log('Emitindo join para:', playerName);
                 socket.emit('join', playerName);
                 console.log("Game started with name:", playerName);
@@ -662,7 +661,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 player.velocityY = 0;
                 playerName = newName || playerName;
                 player.name = playerName;
-                loadSkin(playerName);
+                loadSkin(playerName); // Carregar a skin do jogador local ao reiniciar
                 bulletPool.forEach(bullet => bullet.active = false);
                 socket.emit('leave');
                 socket.emit('join', playerName);
@@ -794,7 +793,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.log(`Player ${player.name} eliminated ${newEliminations} player(s)`);
                 }
             }
-            loadSkin(player.name);
+            loadSkin(player.name); // Carregar a skin do jogador local
         } else if (!gameOver && !isRestarting && gameStarted) {
             gameOver = true;
             player.hp = 0;
