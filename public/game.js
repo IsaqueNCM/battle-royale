@@ -106,7 +106,7 @@ function drawPentagon(p) {
 }
 
 function drawItem(item) {
-    const size = 10; // Mesmo tamanho do pentágono pequeno
+    const size = 20; // Aumentado de 10 para 20
     ctx.beginPath();
     ctx.rect(item.x - size / 2, item.y - size / 2, size, size);
     ctx.fillStyle = 'red';
@@ -114,7 +114,7 @@ function drawItem(item) {
     ctx.closePath();
 
     ctx.fillStyle = 'white';
-    ctx.font = 'bold 12px Arial';
+    ctx.font = '900 24px Arial'; // Aumentado de "bold 12px" para "900 24px" (muito maior e mais grosso)
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('+', item.x, item.y);
