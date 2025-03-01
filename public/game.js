@@ -19,6 +19,7 @@ let isRestarting = false;
 let gameStarted = false;
 let playerName = "Jogador" + Math.floor(Math.random() * 1000);
 let inputName = playerName;
+let topScores = []; // Armazena os 3 melhores scores
 
 let lastElimination = { killer: '', victim: '', timestamp: 0 };
 const eliminationDisplayTime = 5000;
@@ -95,6 +96,20 @@ function drawScoreboard() {
     
     sortedPlayers.forEach((p, i) => {
         ctx.fillText(`${p.name}: ${p.score}`, canvas.width - 140, 30 + i * 20);
+    });
+}
+
+function drawTopScores() {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.fillRect(canvas.width / 2 - 100, 10, 200, 80);
+    ctx.fillStyle = 'black';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Melhores Pontuações', canvas.width / 2, 30);
+    ctx.font = '14px Arial';
+    
+    topScores.forEach((entry, i) => {
+        ctx.fillText(`${i + 1}. ${entry.name}: ${entry.score}`, canvas.width / 2, 50 + i * 20);
     });
 }
 
@@ -536,6 +551,7 @@ function gameLoop() {
         pentagons.forEach(p => drawPentagon(p));
         drawBullets();
         drawScoreboard();
+        drawTopScores(); // Adiciona o ranking na tela
         if (!gameOver) {
             movePlayer();
             checkPlayerPentagonCollisions();
@@ -608,6 +624,11 @@ socket.on('playerEliminated', (data) => {
         };
         console.log(`Elimination received: ${data.killerName} x ${data.victimName}`);
     }
+});
+
+socket.on('topScores', (updatedTopScores) => {
+    console.log('Top scores recebidos:', updatedTopScores);
+    topScores = updatedTopScores || [];
 });
 
 gameLoop();
