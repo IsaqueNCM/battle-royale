@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Resetando estado do jogo...');
         gameState.gameOver = false;
         gameState.isRestarting = false;
-        gameState.gameStarted = false; // Garante que o jogo volte à tela inicial
+        gameState.gameStarted = false;
         player.hp = 200;
         player.score = 0;
         player.playersEliminated = 0;
@@ -261,7 +261,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawStartScreen() {
-        ctx.fillStyle = 'rgba(128, 128, 128, 0.3)';
+        // CORREÇÃO: Reduzida a opacidade para 0.1 para maior transparência
+        ctx.fillStyle = 'rgba(128, 128, 128, 0.1)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         ctx.font = 'bold 50px Arial';
@@ -562,15 +563,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+            // Desenha o jogo ativo primeiro (fundo visível)
+            drawBullets();
+            gameState.items.forEach(item => drawItem(item));
+            gameState.pentagons.forEach(p => drawPentagon(p));
+            drawPlayers();
+            drawScoreboard();
+            drawTopScores();
+
             if (!gameState.gameStarted) {
-                drawStartScreen();
+                drawStartScreen(); // Tela inicial sobreposta com baixa opacidade
             } else {
-                drawBullets();
-                gameState.items.forEach(item => drawItem(item));
-                gameState.pentagons.forEach(p => drawPentagon(p));
-                drawPlayers();
-                drawScoreboard();
-                drawTopScores();
                 movePlayer(deltaTime);
                 checkPlayerPentagonCollisions();
                 checkPlayerItemCollisions();
