@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let players = [];
     let pentagons = [];
     let items = [];
-    let bullets = []; // Receber balas do servidor
+    let bullets = []; // Todas as balas ativas no servidor
     let gameOver = false;
     let isRestarting = false;
     let gameStarted = false;
@@ -657,6 +657,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Players:', players.length > 0 ? players[0].name : 'Nenhum jogador');
             console.log('Pentagons:', pentagons.length);
             console.log('Items:', items.length);
+            console.log('Bullets:', bullets.length);
             
             if (player.hp <= 0 && !gameOver && gameStarted) {
                 gameOver = true;
@@ -755,12 +756,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     socket.on('shoot', (bullet) => {
         console.log('Shoot received:', bullet);
+        // Adicionar a bala à lista local, independentemente da posição
         bullets.push(bullet);
     });
 
     socket.on('bullets', (updatedBullets) => {
         console.log('Bullets recebidos:', updatedBullets);
-        bullets = updatedBullets || [];
+        bullets = updatedBullets || []; // Atualizar com todas as balas do servidor
     });
 
     socket.on('playerEliminated', (data) => {
