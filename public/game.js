@@ -98,8 +98,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     function resetGameState() {
+        console.log('Resetando estado do jogo...');
         gameOver = false;
         isRestarting = false;
+        gameStarted = false; // Resetar para false até o join ser confirmado
         player.hp = 200;
         player.score = 0;
         player.playersEliminated = 0;
@@ -114,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
         keys.s = false;
         keys.d = false;
         bullets = [];
-        console.log('Estado do jogo resetado:', { gameStarted, gameOver, playerHp: player.hp });
+        console.log('Estado resetado:', { gameStarted, gameOver, playerHp: player.hp });
     }
 
     function drawPlayer(p) {
@@ -567,11 +569,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const clickX = event.clientX - rect.left;
         const clickY = event.clientY - rect.top;
 
+        console.log('Clique registrado em:', { clickX, clickY });
+
         if (!gameStarted) {
             if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
                 clickY >= canvas.height / 2 + 50 && clickY <= canvas.height / 2 + 90) {
-                console.log('Iniciando jogo...');
-                resetGameState(); // Resetar estado antes de começar
+                console.log('Botão "Jogar" clicado na tela inicial');
+                resetGameState();
                 gameStarted = true;
                 playerName = inputName;
                 player.name = playerName;
@@ -601,14 +605,14 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (gameOver) {
             if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
                 clickY >= canvas.height / 2 + 130 && clickY <= canvas.height / 2 + 170) {
-                console.log('Reiniciando jogo...');
+                console.log('Botão "Jogar" clicado na tela de Game Over');
                 resetGameState();
-                gameStarted = true; // Garantir que o jogo esteja ativo após reiniciar
+                gameStarted = true;
                 playerName = newName || playerName;
                 player.name = playerName;
                 loadSkin(playerName);
                 socket.emit('leave');
-                socket.emit('join', { name: playerName, width: canvas.width, height: canvas.height });
+                socket.emit('join', { name: playerName, width: canvas.width, height: canvas.width });
                 console.log("Game restarted with name:", playerName);
             } else {
                 const socialLinks = [
@@ -691,8 +695,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (player.isShooting) shoot();
                     updatePlayer();
                     drawLastElimination();
+                } else {
+                    drawGameOver();
                 }
-                if (gameOver) drawGameOver();
             }
         } catch (error) {
             console.error('Erro no gameLoop:', error.stack);
