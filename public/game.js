@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function resizeCanvas() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
+        console.log('Canvas redimensionado:', { width: canvas.width, height: canvas.height });
     }
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
@@ -101,7 +102,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Resetando estado do jogo...');
         gameOver = false;
         isRestarting = false;
-        gameStarted = false; // Resetar para false até o join ser confirmado
         player.hp = 200;
         player.score = 0;
         player.playersEliminated = 0;
@@ -569,9 +569,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const clickX = event.clientX - rect.left;
         const clickY = event.clientY - rect.top;
 
-        console.log('Clique registrado em:', { clickX, clickY });
+        console.log('Clique registrado em:', { clickX, clickY, canvasWidth: canvas.width, canvasHeight: canvas.height });
 
         if (!gameStarted) {
+            console.log('Verificando clique na tela inicial...');
             if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
                 clickY >= canvas.height / 2 + 50 && clickY <= canvas.height / 2 + 90) {
                 console.log('Botão "Jogar" clicado na tela inicial');
@@ -583,6 +584,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 socket.emit('join', { name: playerName, width: canvas.width, height: canvas.height });
                 console.log("Game started with name:", playerName);
             } else {
+                console.log('Clique fora do botão "Jogar" na tela inicial');
                 const socialLinks = [
                     { name: 'YOUTUBE', url: 'https://www.youtube.com/@GAMEPLAYS-h7t' },
                     { name: 'TWITCH', url: 'https://www.twitch.tv/isaque15e' },
@@ -603,6 +605,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
         } else if (gameOver) {
+            console.log('Verificando clique na tela de Game Over...');
             if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
                 clickY >= canvas.height / 2 + 130 && clickY <= canvas.height / 2 + 170) {
                 console.log('Botão "Jogar" clicado na tela de Game Over');
@@ -612,9 +615,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 player.name = playerName;
                 loadSkin(playerName);
                 socket.emit('leave');
-                socket.emit('join', { name: playerName, width: canvas.width, height: canvas.width });
+                socket.emit('join', { name: playerName, width: canvas.width, height: canvas.height });
                 console.log("Game restarted with name:", playerName);
             } else {
+                console.log('Clique fora do botão "Jogar" na tela de Game Over');
                 const socialLinks = [
                     { name: 'YOUTUBE', url: 'https://www.youtube.com/@GAMEPLAYS-h7t' },
                     { name: 'TWITCH', url: 'https://www.twitch.tv/isaque15e' },
@@ -695,9 +699,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (player.isShooting) shoot();
                     updatePlayer();
                     drawLastElimination();
-                } else {
-                    drawGameOver();
                 }
+                if (gameOver) drawGameOver();
             }
         } catch (error) {
             console.error('Erro no gameLoop:', error.stack);
