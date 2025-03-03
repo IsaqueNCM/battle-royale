@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Resetando estado do jogo...');
         gameState.gameOver = false;
         gameState.isRestarting = false;
-        gameState.gameStarted = false; // CORREÇÃO: Garantir que gameStarted seja false até confirmação
+        gameState.gameStarted = false; // Garante que o jogo volte à tela inicial
         player.hp = 200;
         player.score = 0;
         player.playersEliminated = 0;
@@ -260,76 +260,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function drawGameOver() {
-        ctx.fillStyle = 'rgba(128, 128, 128, 0.7)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        ctx.font = 'bold 50px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = 'red';
-        ctx.shadowColor = 'black';
-        ctx.shadowBlur = 10;
-        ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 150);
-        ctx.shadowBlur = 0;
-
-        ctx.font = '16px Arial';
-        ctx.fillStyle = 'black';
-        ctx.fillText('Um jogo produzido por Isaque do Nascimento', canvas.width / 2, canvas.height / 2 - 100);
-
-        ctx.font = '20px Arial';
-        ctx.fillStyle = 'white';
-        const startY = canvas.height / 2 - 80;
-        const stats = [
-            `Players eliminado: ${player.playersEliminated}`,
-            `Inimigos roxo: ${player.purplePentagonsEliminated}`,
-            `Inimigo laranja: ${player.yellowPentagonsEliminated}`,
-            `Pontuação: ${player.score}`
-        ];
-
-        stats.forEach((text, index) => {
-            const y = startY + index * 30;
-            ctx.fillText(text, canvas.width / 2, y);
-        });
-
-        ctx.fillStyle = 'white';
-        ctx.strokeStyle = 'blue';
-        ctx.fillRect(canvas.width / 2 - 120, canvas.height / 2 + 80, 240, 40);
-        ctx.strokeRect(canvas.width / 2 - 120, canvas.height / 2 + 80, 240, 40);
-        ctx.fillStyle = 'black';
-        ctx.font = '18px Arial';
-        ctx.fillText(gameState.newName || gameState.playerName, canvas.width / 2, canvas.height / 2 + 105);
-
-        ctx.fillStyle = 'rgba(0, 200, 0, 0.9)';
-        ctx.strokeStyle = 'darkgreen';
-        ctx.fillRect(canvas.width / 2 - 120, canvas.height / 2 + 130, 240, 40);
-        ctx.strokeRect(canvas.width / 2 - 120, canvas.height / 2 + 130, 240, 40);
-        ctx.fillStyle = 'white';
-        ctx.font = '20px Arial';
-        ctx.fillText('Jogar', canvas.width / 2, canvas.height / 2 + 155);
-
-        const socialLinks = [
-            { name: 'YOUTUBE', url: 'https://www.youtube.com/@GAMEPLAYS-h7t' },
-            { name: 'TWITCH', url: 'https://www.twitch.tv/isaque15e' },
-            { name: 'TIKTOK', url: 'https://www.tiktok.com/@gameplays_sv' },
-            { name: 'GITHUB', url: 'https://github.com/IsaqueNCM' },
-            { name: 'INSTAGRAM', url: 'https://www.instagram.com/izy_nobre/' }
-        ];
-
-        ctx.font = 'bold 20px Arial';
-        ctx.fillStyle = 'black';
-        ctx.fillText('REDES SOCIAIS', canvas.width / 2, canvas.height - 65);
-
-        ctx.font = 'bold 20px Arial';
-        ctx.fillStyle = 'black';
-        const startX = canvas.width / 2 - 300;
-        const y = canvas.height - 30;
-        
-        socialLinks.forEach((link, index) => {
-            const x = startX + index * 150;
-            ctx.fillText(link.name, x, y);
-        });
-    }
-
     function drawStartScreen() {
         ctx.fillStyle = 'rgba(128, 128, 128, 0.3)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -395,7 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function movePlayer(deltaTime) {
-        if (gameState.gameOver || player.hp <= 0) return;
+        if (player.hp <= 0) return;
 
         let accelX = 0;
         let accelY = 0;
@@ -541,20 +471,13 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 document.body.style.cursor = 'default';
             }
-        } else if (gameState.gameOver) {
-            if (mouseX >= canvas.width / 2 - 120 && mouseX <= canvas.width / 2 + 120 &&
-                mouseY >= canvas.height / 2 + 130 && mouseY <= canvas.height / 2 + 170) {
-                document.body.style.cursor = 'pointer';
-            } else {
-                document.body.style.cursor = 'default';
-            }
         } else {
             player.angle = Math.atan2(mouseY - player.y, mouseX - player.x);
         }
     });
 
     canvas.addEventListener('mousedown', (event) => {
-        if (event.button === 0 && !gameState.gameOver && player.hp > 0) {
+        if (event.button === 0 && player.hp > 0) {
             console.log('Mouse down at:', Date.now());
             player.isShooting = true;
         }
@@ -570,9 +493,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const rect = canvas.getBoundingClientRect();
         const clickX = event.clientX - rect.left;
         const clickY = event.clientY - rect.top;
-    
+
         console.log('Clique registrado em:', { clickX, clickY, canvasWidth: canvas.width, canvasHeight: canvas.height });
-    
+
         if (!gameState.gameStarted) {
             console.log('Verificando clique na tela inicial...');
             if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
@@ -581,44 +504,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 resetGameState();
                 gameState.playerName = gameState.inputName;
                 player.name = gameState.playerName;
-                loadSkin(gameState.playerName); // CORREÇÃO: Carregar skin antes do join
+                loadSkin(gameState.playerName);
                 socket.emit('join', { name: gameState.playerName, width: canvas.width, height: canvas.height });
-                console.log("Join emitido com nome:", gameState.playerName); // CORREÇÃO: gameStarted não é definido aqui
+                console.log("Join emitido com nome:", gameState.playerName);
             } else {
                 console.log('Clique fora do botão "Jogar" na tela inicial');
-                const socialLinks = [
-                    { name: 'YOUTUBE', url: 'https://www.youtube.com/@GAMEPLAYS-h7t' },
-                    { name: 'TWITCH', url: 'https://www.twitch.tv/isaque15e' },
-                    { name: 'TIKTOK', url: 'https://www.tiktok.com/@gameplays_sv' },
-                    { name: 'GITHUB', url: 'https://github.com/IsaqueNCM' },
-                    { name: 'INSTAGRAM', url: 'https://www.instagram.com/izy_nobre/' }
-                ];
-                const startX = canvas.width / 2 - 300;
-                const y = canvas.height - 30;
-                ctx.font = 'bold 20px Arial';
-                socialLinks.forEach((link, index) => {
-                    const textWidth = ctx.measureText(link.name).width;
-                    const x = startX + index * 150;
-                    if (clickX >= x - 10 && clickX <= x + textWidth + 10 &&
-                        clickY >= y - 25 && clickY <= y + 5) {
-                        window.open(link.url, '_blank');
-                    }
-                });
-            }
-        } else if (gameState.gameOver) {
-            console.log('Verificando clique na tela de Game Over...');
-            if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
-                clickY >= canvas.height / 2 + 130 && clickY <= canvas.height / 2 + 170) {
-                console.log('Botão "Jogar" clicado na tela de Game Over');
-                resetGameState();
-                gameState.playerName = gameState.newName || gameState.playerName;
-                player.name = gameState.playerName;
-                loadSkin(gameState.playerName); // CORREÇÃO: Carregar skin antes do join
-                socket.emit('leave');
-                socket.emit('join', { name: gameState.playerName, width: canvas.width, height: canvas.height });
-                console.log("Join emitido após Game Over com nome:", gameState.playerName); // CORREÇÃO: gameStarted não é definido aqui
-            } else {
-                console.log('Clique fora do botão "Jogar" na tela de Game Over');
                 const socialLinks = [
                     { name: 'YOUTUBE', url: 'https://www.youtube.com/@GAMEPLAYS-h7t' },
                     { name: 'TWITCH', url: 'https://www.twitch.tv/isaque15e' },
@@ -648,12 +538,6 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (event.key.length === 1 && gameState.inputName.length < 15) {
                 gameState.inputName += event.key;
             }
-        } else if (gameState.gameOver) {
-            if (event.key === 'Backspace' && gameState.newName.length > 0) {
-                gameState.newName = gameState.newName.slice(0, -1);
-            } else if (event.key.length === 1 && gameState.newName.length < 15) {
-                gameState.newName += event.key;
-            }
         } else if (event.key in keys) {
             keys[event.key] = true;
         }
@@ -675,11 +559,6 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Pentagons:', gameState.pentagons.length);
             console.log('Items:', gameState.items.length);
             console.log('Bullets:', gameState.bullets.length);
-            
-            if (player.hp <= 0 && !gameState.gameOver && gameState.gameStarted) {
-                gameState.gameOver = true;
-                console.log("Game Over triggered: HP <= 0");
-            }
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -692,15 +571,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 drawPlayers();
                 drawScoreboard();
                 drawTopScores();
-                if (!gameState.gameOver) {
-                    movePlayer(deltaTime);
-                    checkPlayerPentagonCollisions();
-                    checkPlayerItemCollisions();
-                    if (player.isShooting) shoot();
-                    updatePlayer();
-                    drawLastElimination();
-                }
-                if (gameState.gameOver) drawGameOver();
+                movePlayer(deltaTime);
+                checkPlayerPentagonCollisions();
+                checkPlayerItemCollisions();
+                if (player.isShooting) shoot();
+                updatePlayer();
+                drawLastElimination();
             }
         } catch (error) {
             console.error('Erro no gameLoop:', error.stack);
@@ -717,7 +593,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const serverPlayer = gameState.players.find(p => p.id === player.id);
         if (serverPlayer) {
             if (!gameState.gameStarted) {
-                gameState.gameStarted = true; // CORREÇÃO: Confirma que o jogo começou apenas aqui
+                gameState.gameStarted = true;
                 console.log("Game started confirmed by server for:", gameState.playerName);
             }
             const dx = serverPlayer.x - player.x;
@@ -733,9 +609,10 @@ document.addEventListener('DOMContentLoaded', () => {
             player.hp = serverPlayer.hp;
             player.score = serverPlayer.score;
             console.log(`Player ${player.name} HP updated to: ${player.hp}`);
-            if (previousHp > 0 && player.hp <= 0 && !gameState.gameOver && gameState.gameStarted) {
-                gameState.gameOver = true;
-                console.log("Game Over triggered from server HP update");
+            if (previousHp > 0 && player.hp <= 0 && gameState.gameStarted) {
+                resetGameState();
+                socket.emit('leave');
+                console.log("Jogador morreu, voltando à tela inicial");
             }
             if (player.score > 0 && (player.score % 100 === 0 || (player.score - 100 * player.playersEliminated) % 100 === 0)) {
                 const newEliminations = Math.floor(player.score / 100) - player.playersEliminated;
@@ -759,9 +636,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log("Restart completed, resuming normal play");
             }
         } else if (!gameState.gameOver && !gameState.isRestarting && gameState.gameStarted && gameState.players.length > 0) {
-            gameState.gameOver = true;
-            player.hp = 0;
-            console.log("Game Over triggered: Player not found in server list (destroyed)");
+            resetGameState();
+            socket.emit('leave');
+            console.log("Jogador não encontrado na lista do servidor, voltando à tela inicial");
         }
     });
 
@@ -786,7 +663,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     socket.on('playerEliminated', (data) => {
-        if (gameState.gameStarted && !gameState.gameOver) {
+        if (gameState.gameStarted) {
             gameState.lastElimination = {
                 killer: data.killerName,
                 victim: data.victimName,
@@ -803,7 +680,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     socket.on('joinConfirmed', (playerData) => {
         console.log('Join confirmado pelo servidor:', playerData);
-        gameState.gameStarted = true; // CORREÇÃO: Define gameStarted apenas após confirmação
+        gameState.gameStarted = true;
         player.hp = playerData.hp;
         player.x = playerData.x;
         player.y = playerData.y;
