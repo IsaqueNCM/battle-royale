@@ -55,36 +55,24 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    let players = [];
-    let pentagons = [];
-    let items = [];
-    let bullets = [];
-    let gameOver = false;
-    let isRestarting = false;
-    let gameStarted = false;
-    let playerName = "Jogador" + Math.floor(Math.random() * 1000);
-    let inputName = playerName;
-    let topScores = [];
+    // Estado isolado por instância
+    const gameState = {
+        players: [],
+        pentagons: [],
+        items: [],
+        bullets: [],
+        gameOver: false,
+        isRestarting: false,
+        gameStarted: false,
+        playerName: "Jogador" + Math.floor(Math.random() * 1000),
+        inputName: "Jogador" + Math.floor(Math.random() * 1000),
+        topScores: [],
+        lastElimination: { killer: '', victim: '', timestamp: 0 }
+    };
 
-    let lastElimination = { killer: '', victim: '', timestamp: 0 };
-    const eliminationDisplayTime = 5000;
-
-    const bulletCooldown = 500;
-    const collisionCooldown = 1000;
-    let lastShotTime = 0;
-    let lastCollisionTime = 0;
-    let lastMoveUpdate = 0;
-    const moveUpdateInterval = 50;
-
-    const keys = { w: false, a: false, s: false, d: false };
-
-    const ACCELERATION = 300;
-    const MAX_SPEED = 150;
-    const FRICTION = 150;
-
-    let player = {
+    const player = {
         id: null,
-        name: playerName,
+        name: gameState.playerName,
         x: window.innerWidth / 2,
         y: window.innerHeight / 2,
         velocityX: 0,
@@ -98,10 +86,24 @@ document.addEventListener('DOMContentLoaded', () => {
         purplePentagonsEliminated: 0
     };
 
+    const eliminationDisplayTime = 5000;
+    const bulletCooldown = 500;
+    const collisionCooldown = 1000;
+    let lastShotTime = 0;
+    let lastCollisionTime = 0;
+    let lastMoveUpdate = 0;
+    const moveUpdateInterval = 50;
+
+    const keys = { w: false, a: false, s: false, d: false };
+    const ACCELERATION = 300;
+    const MAX_SPEED = 150;
+    const FRICTION = 150;
+
     function resetGameState() {
         console.log('Resetando estado do jogo...');
-        gameOver = false;
-        isRestarting = false;
+        gameState.gameOver = false;
+        gameState.isRestarting = false;
+        gameState.gameStarted = false; // Só será true após confirmação do servidor
         player.hp = 200;
         player.score = 0;
         player.playersEliminated = 0;
@@ -115,8 +117,8 @@ document.addEventListener('DOMContentLoaded', () => {
         keys.a = false;
         keys.s = false;
         keys.d = false;
-        bullets = [];
-        console.log('Estado resetado:', { gameStarted, gameOver, playerHp: player.hp });
+        gameState.bullets = [];
+        console.log('Estado resetado:', { gameStarted: gameState.gameStarted, gameOver: gameState.gameOver, playerHp: player.hp });
     }
 
     function drawPlayer(p) {
@@ -202,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawBullets() {
-        bullets.forEach(bullet => {
+        gameState.bullets.forEach(bullet => {
             if (bullet.active && 
                 bullet.x >= 0 && bullet.x <= canvas.width && 
                 bullet.y >= 0 && bullet.y <= canvas.height) {
@@ -222,7 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.font = '14px Arial';
         ctx.textAlign = 'left';
         
-        const sortedPlayers = [...players]
+        const sortedPlayers = [...gameState.players]
             .filter(p => p && p.name && typeof p.score === 'number')
             .sort((a, b) => b.score - a.score);
         
@@ -240,21 +242,21 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillText('Melhores Pontuações', canvas.width / 2, 30);
         ctx.font = '14px Arial';
         
-        topScores.forEach((entry, i) => {
+        gameState.topScores.forEach((entry, i) => {
             ctx.fillText(`${i + 1}. ${entry.name}: ${entry.score}`, canvas.width / 2, 50 + i * 20);
         });
     }
 
     function drawLastElimination() {
         const currentTime = Date.now();
-        if (lastElimination.timestamp > 0 && (currentTime - lastElimination.timestamp) < eliminationDisplayTime) {
+        if (gameState.lastElimination.timestamp > 0 && (currentTime - gameState.lastElimination.timestamp) < eliminationDisplayTime) {
             ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
             ctx.fillRect(10, 10, 200, 50);
             ctx.fillStyle = 'black';
             ctx.font = '14px Arial';
             ctx.textAlign = 'left';
             ctx.fillText('Última Eliminação:', 20, 30);
-            ctx.fillText(`${lastElimination.killer} x ${lastElimination.victim}`, 20, 50);
+            ctx.fillText(`${gameState.lastElimination.killer} x ${gameState.lastElimination.victim}`, 20, 50);
         }
     }
 
@@ -295,7 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.strokeRect(canvas.width / 2 - 120, canvas.height / 2 + 80, 240, 40);
         ctx.fillStyle = 'black';
         ctx.font = '18px Arial';
-        ctx.fillText(newName, canvas.width / 2, canvas.height / 2 + 105);
+        ctx.fillText(gameState.newName || gameState.playerName, canvas.width / 2, canvas.height / 2 + 105);
 
         ctx.fillStyle = 'rgba(0, 200, 0, 0.9)';
         ctx.strokeStyle = 'darkgreen';
@@ -350,7 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.strokeRect(canvas.width / 2 - 120, canvas.height / 2 - 20, 240, 40);
         ctx.fillStyle = 'black';
         ctx.font = '18px Arial';
-        ctx.fillText(inputName, canvas.width / 2, canvas.height / 2 + 5);
+        ctx.fillText(gameState.inputName, canvas.width / 2, canvas.height / 2 + 5);
 
         ctx.fillStyle = 'rgba(0, 200, 0, 0.9)';
         ctx.strokeStyle = 'darkgreen';
@@ -393,7 +395,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function movePlayer(deltaTime) {
-        if (gameOver || player.hp <= 0) return;
+        if (gameState.gameOver || player.hp <= 0) return;
 
         let accelX = 0;
         let accelY = 0;
@@ -435,7 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentTime = Date.now();
         if (currentTime - lastCollisionTime < collisionCooldown || player.hp <= 0 || !player.id) return;
 
-        pentagons.forEach(pentagon => {
+        gameState.pentagons.forEach(pentagon => {
             if (checkCollision(player, pentagon)) {
                 const dx = player.x - pentagon.x;
                 const dy = player.y - pentagon.y;
@@ -475,7 +477,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function checkPlayerItemCollisions() {
-        items.forEach(item => {
+        gameState.items.forEach(item => {
             const dx = player.x - item.x;
             const dy = player.y - item.y;
             const distance = Math.hypot(dx, dy);
@@ -516,7 +518,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawPlayers() {
-        players.forEach(p => drawPlayer(p));
+        gameState.players.forEach(p => drawPlayer(p));
     }
 
     function updatePlayer() {
@@ -532,14 +534,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const mouseX = event.clientX - rect.left;
         const mouseY = event.clientY - rect.top;
 
-        if (!gameStarted) {
+        if (!gameState.gameStarted) {
             if (mouseX >= canvas.width / 2 - 120 && mouseX <= canvas.width / 2 + 120 &&
                 mouseY >= canvas.height / 2 + 50 && mouseY <= canvas.height / 2 + 90) {
                 document.body.style.cursor = 'pointer';
             } else {
                 document.body.style.cursor = 'default';
             }
-        } else if (gameOver) {
+        } else if (gameState.gameOver) {
             if (mouseX >= canvas.width / 2 - 120 && mouseX <= canvas.width / 2 + 120 &&
                 mouseY >= canvas.height / 2 + 130 && mouseY <= canvas.height / 2 + 170) {
                 document.body.style.cursor = 'pointer';
@@ -552,7 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     canvas.addEventListener('mousedown', (event) => {
-        if (event.button === 0 && !gameOver && player.hp > 0) {
+        if (event.button === 0 && !gameState.gameOver && player.hp > 0) {
             console.log('Mouse down at:', Date.now());
             player.isShooting = true;
         }
@@ -562,7 +564,7 @@ document.addEventListener('DOMContentLoaded', () => {
         player.isShooting = false;
     });
 
-    let newName = playerName;
+    gameState.newName = gameState.playerName;
 
     canvas.addEventListener('click', (event) => {
         const rect = canvas.getBoundingClientRect();
@@ -571,18 +573,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         console.log('Clique registrado em:', { clickX, clickY, canvasWidth: canvas.width, canvasHeight: canvas.height });
 
-        if (!gameStarted) {
+        if (!gameState.gameStarted) {
             console.log('Verificando clique na tela inicial...');
             if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
                 clickY >= canvas.height / 2 + 50 && clickY <= canvas.height / 2 + 90) {
                 console.log('Botão "Jogar" clicado na tela inicial');
                 resetGameState();
-                gameStarted = true;
-                playerName = inputName;
-                player.name = playerName;
-                loadSkin(playerName);
-                socket.emit('join', { name: playerName, width: canvas.width, height: canvas.height });
-                console.log("Game started with name:", playerName);
+                gameState.gameStarted = true;
+                gameState.playerName = gameState.inputName;
+                player.name = gameState.playerName;
+                loadSkin(gameState.playerName);
+                socket.emit('join', { name: gameState.playerName, width: canvas.width, height: canvas.height });
+                console.log("Game started with name:", gameState.playerName);
             } else {
                 console.log('Clique fora do botão "Jogar" na tela inicial');
                 const socialLinks = [
@@ -604,19 +606,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
             }
-        } else if (gameOver) {
+        } else if (gameState.gameOver) {
             console.log('Verificando clique na tela de Game Over...');
             if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
                 clickY >= canvas.height / 2 + 130 && clickY <= canvas.height / 2 + 170) {
                 console.log('Botão "Jogar" clicado na tela de Game Over');
                 resetGameState();
-                gameStarted = true;
-                playerName = newName || playerName;
-                player.name = playerName;
-                loadSkin(playerName);
+                gameState.gameStarted = true;
+                gameState.playerName = gameState.newName || gameState.playerName;
+                player.name = gameState.playerName;
+                loadSkin(gameState.playerName);
                 socket.emit('leave');
-                socket.emit('join', { name: playerName, width: canvas.width, height: canvas.height });
-                console.log("Game restarted with name:", playerName);
+                socket.emit('join', { name: gameState.playerName, width: canvas.width, height: canvas.height });
+                console.log("Game restarted with name:", gameState.playerName);
             } else {
                 console.log('Clique fora do botão "Jogar" na tela de Game Over');
                 const socialLinks = [
@@ -642,17 +644,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.addEventListener('keydown', (event) => {
-        if (!gameStarted) {
-            if (event.key === 'Backspace' && inputName.length > 0) {
-                inputName = inputName.slice(0, -1);
-            } else if (event.key.length === 1 && inputName.length < 15) {
-                inputName += event.key;
+        if (!gameState.gameStarted) {
+            if (event.key === 'Backspace' && gameState.inputName.length > 0) {
+                gameState.inputName = gameState.inputName.slice(0, -1);
+            } else if (event.key.length === 1 && gameState.inputName.length < 15) {
+                gameState.inputName += event.key;
             }
-        } else if (gameOver) {
-            if (event.key === 'Backspace' && newName.length > 0) {
-                newName = newName.slice(0, -1);
-            } else if (event.key.length === 1 && newName.length < 15) {
-                newName += event.key;
+        } else if (gameState.gameOver) {
+            if (event.key === 'Backspace' && gameState.newName.length > 0) {
+                gameState.newName = gameState.newName.slice(0, -1);
+            } else if (event.key.length === 1 && gameState.newName.length < 15) {
+                gameState.newName += event.key;
             }
         } else if (event.key in keys) {
             keys[event.key] = true;
@@ -670,29 +672,29 @@ document.addEventListener('DOMContentLoaded', () => {
             const deltaTime = Math.min((timestamp - lastTime) / 1000, 0.1);
             lastTime = timestamp;
 
-            console.log('Game loop - gameStarted:', gameStarted, 'gameOver:', gameOver, 'player.hp:', player.hp);
-            console.log('Players:', players.length > 0 ? players[0].name : 'Nenhum jogador');
-            console.log('Pentagons:', pentagons.length);
-            console.log('Items:', items.length);
-            console.log('Bullets:', bullets.length);
+            console.log('Game loop - gameStarted:', gameState.gameStarted, 'gameOver:', gameState.gameOver, 'player.hp:', player.hp);
+            console.log('Players:', gameState.players.length > 0 ? gameState.players[0].name : 'Nenhum jogador');
+            console.log('Pentagons:', gameState.pentagons.length);
+            console.log('Items:', gameState.items.length);
+            console.log('Bullets:', gameState.bullets.length);
             
-            if (player.hp <= 0 && !gameOver && gameStarted) {
-                gameOver = true;
+            if (player.hp <= 0 && !gameState.gameOver && gameState.gameStarted) {
+                gameState.gameOver = true;
                 console.log("Game Over triggered: HP <= 0");
             }
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            if (!gameStarted) {
+            if (!gameState.gameStarted) {
                 drawStartScreen();
             } else {
                 drawBullets();
-                items.forEach(item => drawItem(item));
-                pentagons.forEach(p => drawPentagon(p));
+                gameState.items.forEach(item => drawItem(item));
+                gameState.pentagons.forEach(p => drawPentagon(p));
                 drawPlayers();
                 drawScoreboard();
                 drawTopScores();
-                if (!gameOver) {
+                if (!gameState.gameOver) {
                     movePlayer(deltaTime);
                     checkPlayerPentagonCollisions();
                     checkPlayerItemCollisions();
@@ -700,7 +702,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     updatePlayer();
                     drawLastElimination();
                 }
-                if (gameOver) drawGameOver();
+                if (gameState.gameOver) drawGameOver();
             }
         } catch (error) {
             console.error('Erro no gameLoop:', error.stack);
@@ -713,8 +715,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     socket.on('players', (updatedPlayers) => {
         console.log('Players recebidos:', updatedPlayers);
-        players = updatedPlayers || [];
-        const serverPlayer = players.find(p => p.id === player.id);
+        gameState.players = updatedPlayers || [];
+        const serverPlayer = gameState.players.find(p => p.id === player.id);
         if (serverPlayer) {
             const dx = serverPlayer.x - player.x;
             const dy = serverPlayer.y - player.y;
@@ -729,8 +731,8 @@ document.addEventListener('DOMContentLoaded', () => {
             player.hp = serverPlayer.hp;
             player.score = serverPlayer.score;
             console.log(`Player ${player.name} HP updated to: ${player.hp}`);
-            if (previousHp > 0 && player.hp <= 0 && !gameOver && !isRestarting && gameStarted) {
-                gameOver = true;
+            if (previousHp > 0 && player.hp <= 0 && !gameState.gameOver && !gameState.isRestarting && gameState.gameStarted) {
+                gameState.gameOver = true;
                 console.log("Game Over triggered from server HP update");
             }
             if (player.score > 0 && (player.score % 100 === 0 || (player.score - 100 * player.playersEliminated) % 100 === 0)) {
@@ -740,22 +742,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.log(`Player ${player.name} eliminated ${newEliminations} player(s)`);
                 }
             }
-            const skinFile = `${playerName.toLowerCase()}.png`;
+            const skinFile = `${gameState.playerName.toLowerCase()}.png`;
             fetch(`/skins/${skinFile}`)
                 .then(response => {
                     if (response.ok) {
                         loadSkin(`/skins/${skinFile}`);
                     } else {
-                        console.warn(`Nenhuma skin encontrada para ${playerName}`);
+                        console.warn(`Nenhuma skin encontrada para ${gameState.playerName}`);
                     }
                 })
-                .catch(err => console.error(`Erro ao verificar skin para ${playerName}:`, err));
-            if (isRestarting && serverPlayer.hp > 0) {
-                isRestarting = false;
+                .catch(err => console.error(`Erro ao verificar skin para ${gameState.playerName}:`, err));
+            if (gameState.isRestarting && serverPlayer.hp > 0) {
+                gameState.isRestarting = false;
                 console.log("Restart completed, resuming normal play");
             }
-        } else if (!gameOver && !isRestarting && gameStarted && players.length > 0) {
-            gameOver = true;
+        } else if (!gameState.gameOver && !gameState.isRestarting && gameState.gameStarted && gameState.players.length > 0) {
+            gameState.gameOver = true;
             player.hp = 0;
             console.log("Game Over triggered: Player not found in server list (destroyed)");
         }
@@ -763,27 +765,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     socket.on('pentagons', (updatedPentagons) => {
         console.log('Pentagons recebidos:', updatedPentagons);
-        pentagons = updatedPentagons || [];
+        gameState.pentagons = updatedPentagons || [];
     });
 
     socket.on('items', (updatedItems) => {
         console.log('Items recebidos:', updatedItems);
-        items = updatedItems || [];
+        gameState.items = updatedItems || [];
     });
 
     socket.on('shoot', (bullet) => {
         console.log('Shoot received:', bullet);
-        bullets.push(bullet);
+        gameState.bullets.push(bullet);
     });
 
     socket.on('bullets', (updatedBullets) => {
         console.log('Bullets recebidos:', updatedBullets);
-        bullets = updatedBullets || [];
+        gameState.bullets = updatedBullets || [];
     });
 
     socket.on('playerEliminated', (data) => {
-        if (gameStarted && !gameOver) {
-            lastElimination = {
+        if (gameState.gameStarted && !gameState.gameOver) {
+            gameState.lastElimination = {
                 killer: data.killerName,
                 victim: data.victimName,
                 timestamp: Date.now()
@@ -794,6 +796,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     socket.on('topScores', (updatedTopScores) => {
         console.log('Top scores recebidos:', updatedTopScores);
-        topScores = updatedTopScores || [];
+        gameState.topScores = updatedTopScores || [];
     });
 });
