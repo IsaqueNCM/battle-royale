@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let players = [];
     let pentagons = [];
     let items = [];
+    let bullets = []; // Receber balas do servidor
     let gameOver = false;
     let isRestarting = false;
     let gameStarted = false;
@@ -67,7 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastElimination = { killer: '', victim: '', timestamp: 0 };
     const eliminationDisplayTime = 5000;
 
-    const bulletSpeed = 300;
     const bulletCooldown = 500;
     const collisionCooldown = 1000;
     let lastShotTime = 0;
@@ -96,24 +96,6 @@ document.addEventListener('DOMContentLoaded', () => {
         yellowPentagonsEliminated: 0,
         purplePentagonsEliminated: 0
     };
-
-    const BULLET_POOL_SIZE = 100;
-    const bulletPool = [];
-    for (let i = 0; i < BULLET_POOL_SIZE; i++) {
-        bulletPool.push({
-            x: 0,
-            y: 0,
-            dx: 0,
-            dy: 0,
-            angle: 0,
-            shooterId: null,
-            active: false
-        });
-    }
-
-    function getInactiveBullet() {
-        return bulletPool.find(bullet => !bullet.active) || null;
-    }
 
     function drawPlayer(p) {
         const radius = 20;
@@ -195,6 +177,20 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('+', item.x, item.y);
+    }
+
+    function drawBullets() {
+        bullets.forEach(bullet => {
+            if (bullet.active && 
+                bullet.x >= 0 && bullet.x <= canvas.width && 
+                bullet.y >= 0 && bullet.y <= canvas.height) {
+                ctx.beginPath();
+                ctx.arc(bullet.x, bullet.y, 5, 0, Math.PI * 2);
+                ctx.fillStyle = 'green';
+                ctx.fill();
+                ctx.closePath();
+            }
+        });
     }
 
     function drawScoreboard() {
@@ -365,20 +361,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function drawBullets() {
-        bulletPool.forEach(bullet => {
-            if (bullet.active && 
-                bullet.x >= 0 && bullet.x <= canvas.width && 
-                bullet.y >= 0 && bullet.y <= canvas.height) {
-                ctx.beginPath();
-                ctx.arc(bullet.x, bullet.y, 5, 0, Math.PI * 2);
-                ctx.fillStyle = 'green';
-                ctx.fill();
-                ctx.closePath();
-            }
-        });
-    }
-
     function checkCollision(obj1, obj2) {
         const dx = obj1.x - obj2.x;
         const dy = obj1.y - obj2.y;
@@ -502,70 +484,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const weaponX = player.x + Math.cos(player.angle) * weaponLength;
             const weaponY = player.y + Math.sin(player.angle) * weaponLength;
 
-            const bullet = getInactiveBullet();
-            if (bullet) {
-                bullet.x = weaponX;
-                bullet.y = weaponY;
-                bullet.angle = player.angle;
-                bullet.dx = Math.cos(player.angle) * bulletSpeed;
-                bullet.dy = Math.sin(player.angle) * bulletSpeed;
-                bullet.shooterId = player.id;
-                bullet.active = true;
-
-                socket.emit('shoot', {
-                    x: bullet.x,
-                    y: bullet.y,
-                    angle: bullet.angle,
-                    shooterId: player.id
-                });
-            } else {
-                console.warn('Nenhuma bala disponível no pool!');
-            }
+            socket.emit('shoot', {
+                x: weaponX,
+                y: weaponY,
+                angle: player.angle,
+                shooterId: player.id
+            });
         }
-    }
-
-    function updateBullets(deltaTime) {
-        bulletPool.forEach(bullet => {
-            if (bullet.active) {
-                bullet.x += bullet.dx * deltaTime;
-                bullet.y += bullet.dy * deltaTime;
-
-                for (let i = 0; i < pentagons.length; i++) {
-                    if (checkCollision(bullet, pentagons[i])) {
-                        socket.emit('bulletHitPentagon', {
-                            pentagonId: pentagons[i].id,
-                            shooterId: bullet.shooterId
-                        });
-                        if (pentagons[i].hp <= 1) {
-                            if (pentagons[i].behavior === 'chase') {
-                                player.purplePentagonsEliminated++;
-                            } else if (pentagons[i].behavior === 'evade') {
-                                player.yellowPentagonsEliminated++;
-                            }
-                        }
-                        bullet.active = false;
-                        return;
-                    }
-                }
-
-                for (let i = 0; i < players.length; i++) {
-                    if (players[i].id !== bullet.shooterId && checkCollision(bullet, players[i])) {
-                        console.log(`Bullet from ${bullet.shooterId} hit player ${players[i].id}`);
-                        socket.emit('bulletHitPlayer', {
-                            targetPlayerId: players[i].id,
-                            shooterId: bullet.shooterId,
-                            damage: 15
-                        });
-                        bullet.active = false;
-                        return;
-                    }
-                }
-
-                if (bullet.x < 0 || bullet.x > canvas.width || bullet.y < 0 || bullet.y > canvas.height) {
-                    bullet.active = false;
-                }
-            }
-        });
     }
 
     function drawPlayers() {
@@ -669,7 +594,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 playerName = newName || playerName;
                 player.name = playerName;
                 loadSkin(playerName);
-                bulletPool.forEach(bullet => bullet.active = false);
                 socket.emit('leave');
                 socket.emit('join', { name: playerName, width: canvas.width, height: canvas.height });
                 console.log("Game restarted with name:", playerName);
@@ -755,7 +679,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     checkPlayerPentagonCollisions();
                     checkPlayerItemCollisions();
                     if (player.isShooting) shoot();
-                    updateBullets(deltaTime);
                     updatePlayer();
                     drawLastElimination();
                 }
@@ -830,21 +753,14 @@ document.addEventListener('DOMContentLoaded', () => {
         items = updatedItems || [];
     });
 
-    socket.on('shoot', (data) => {
-        console.log('Shoot received at:', Date.now(), data);
-        if (data.shooterId !== player.id) {
-            const bullet = getInactiveBullet();
-            if (bullet) {
-                bullet.x = data.x;
-                bullet.y = data.y;
-                bullet.dx = Math.cos(data.angle) * bulletSpeed;
-                bullet.dy = Math.sin(data.angle) * bulletSpeed;
-                bullet.shooterId = data.shooterId;
-                bullet.active = true;
-            } else {
-                console.warn('Nenhuma bala disponível no pool para tiro recebido!');
-            }
-        }
+    socket.on('shoot', (bullet) => {
+        console.log('Shoot received:', bullet);
+        bullets.push(bullet);
+    });
+
+    socket.on('bullets', (updatedBullets) => {
+        console.log('Bullets recebidos:', updatedBullets);
+        bullets = updatedBullets || [];
     });
 
     socket.on('playerEliminated', (data) => {
