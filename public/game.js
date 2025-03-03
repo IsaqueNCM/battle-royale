@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Resetando estado do jogo...');
         gameState.gameOver = false;
         gameState.isRestarting = false;
-        gameState.gameStarted = false; // Só será true após confirmação do servidor
+        gameState.gameStarted = false; // CORREÇÃO: Garantir que gameStarted seja false até confirmação
         player.hp = 200;
         player.score = 0;
         player.playersEliminated = 0;
@@ -570,21 +570,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const rect = canvas.getBoundingClientRect();
         const clickX = event.clientX - rect.left;
         const clickY = event.clientY - rect.top;
-
+    
         console.log('Clique registrado em:', { clickX, clickY, canvasWidth: canvas.width, canvasHeight: canvas.height });
-
+    
         if (!gameState.gameStarted) {
             console.log('Verificando clique na tela inicial...');
             if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
                 clickY >= canvas.height / 2 + 50 && clickY <= canvas.height / 2 + 90) {
                 console.log('Botão "Jogar" clicado na tela inicial');
                 resetGameState();
-                gameState.gameStarted = true;
                 gameState.playerName = gameState.inputName;
                 player.name = gameState.playerName;
-                loadSkin(gameState.playerName);
+                loadSkin(gameState.playerName); // CORREÇÃO: Carregar skin antes do join
                 socket.emit('join', { name: gameState.playerName, width: canvas.width, height: canvas.height });
-                console.log("Game started with name:", gameState.playerName);
+                console.log("Join emitido com nome:", gameState.playerName); // CORREÇÃO: gameStarted não é definido aqui
             } else {
                 console.log('Clique fora do botão "Jogar" na tela inicial');
                 const socialLinks = [
@@ -612,13 +611,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 clickY >= canvas.height / 2 + 130 && clickY <= canvas.height / 2 + 170) {
                 console.log('Botão "Jogar" clicado na tela de Game Over');
                 resetGameState();
-                gameState.gameStarted = true;
                 gameState.playerName = gameState.newName || gameState.playerName;
                 player.name = gameState.playerName;
-                loadSkin(gameState.playerName);
+                loadSkin(gameState.playerName); // CORREÇÃO: Carregar skin antes do join
                 socket.emit('leave');
                 socket.emit('join', { name: gameState.playerName, width: canvas.width, height: canvas.height });
-                console.log("Game restarted with name:", gameState.playerName);
+                console.log("Join emitido após Game Over com nome:", gameState.playerName); // CORREÇÃO: gameStarted não é definido aqui
             } else {
                 console.log('Clique fora do botão "Jogar" na tela de Game Over');
                 const socialLinks = [
@@ -718,6 +716,10 @@ document.addEventListener('DOMContentLoaded', () => {
         gameState.players = updatedPlayers || [];
         const serverPlayer = gameState.players.find(p => p.id === player.id);
         if (serverPlayer) {
+            if (!gameState.gameStarted) {
+                gameState.gameStarted = true; // CORREÇÃO: Confirma que o jogo começou apenas aqui
+                console.log("Game started confirmed by server for:", gameState.playerName);
+            }
             const dx = serverPlayer.x - player.x;
             const dy = serverPlayer.y - player.y;
             const distance = Math.hypot(dx, dy);
@@ -731,7 +733,7 @@ document.addEventListener('DOMContentLoaded', () => {
             player.hp = serverPlayer.hp;
             player.score = serverPlayer.score;
             console.log(`Player ${player.name} HP updated to: ${player.hp}`);
-            if (previousHp > 0 && player.hp <= 0 && !gameState.gameOver && !gameState.isRestarting && gameState.gameStarted) {
+            if (previousHp > 0 && player.hp <= 0 && !gameState.gameOver && gameState.gameStarted) {
                 gameState.gameOver = true;
                 console.log("Game Over triggered from server HP update");
             }
@@ -797,5 +799,13 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('topScores', (updatedTopScores) => {
         console.log('Top scores recebidos:', updatedTopScores);
         gameState.topScores = updatedTopScores || [];
+    });
+
+    socket.on('joinConfirmed', (playerData) => {
+        console.log('Join confirmado pelo servidor:', playerData);
+        gameState.gameStarted = true; // CORREÇÃO: Define gameStarted apenas após confirmação
+        player.hp = playerData.hp;
+        player.x = playerData.x;
+        player.y = playerData.y;
     });
 });
