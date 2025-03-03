@@ -367,7 +367,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function drawBullets() {
         bulletPool.forEach(bullet => {
-            if (bullet.active) {
+            if (bullet.active && 
+                bullet.x >= 0 && bullet.x <= canvas.width && 
+                bullet.y >= 0 && bullet.y <= canvas.height) {
                 ctx.beginPath();
                 ctx.arc(bullet.x, bullet.y, 5, 0, Math.PI * 2);
                 ctx.fillStyle = 'green';
@@ -513,7 +515,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 socket.emit('shoot', {
                     x: bullet.x,
                     y: bullet.y,
-                    angle: bullet.angle
+                    angle: bullet.angle,
+                    shooterId: player.id
                 });
             } else {
                 console.warn('Nenhuma bala disponível no pool!');
@@ -627,7 +630,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 player.name = playerName;
                 loadSkin(playerName);
                 console.log('Emitindo join para:', playerName);
-                socket.emit('join', playerName);
+                socket.emit('join', { name: playerName, width: canvas.width, height: canvas.height });
                 console.log("Game started with name:", playerName);
             } else {
                 const socialLinks = [
@@ -668,7 +671,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadSkin(playerName);
                 bulletPool.forEach(bullet => bullet.active = false);
                 socket.emit('leave');
-                socket.emit('join', playerName);
+                socket.emit('join', { name: playerName, width: canvas.width, height: canvas.height });
                 console.log("Game restarted with name:", playerName);
                 keys.w = false;
                 keys.a = false;
@@ -828,15 +831,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     socket.on('shoot', (data) => {
-        console.log('Shoot received at:', Date.now());
-        if (data.id !== player.id) {
+        console.log('Shoot received at:', Date.now(), data);
+        if (data.shooterId !== player.id) {
             const bullet = getInactiveBullet();
             if (bullet) {
                 bullet.x = data.x;
                 bullet.y = data.y;
                 bullet.dx = Math.cos(data.angle) * bulletSpeed;
                 bullet.dy = Math.sin(data.angle) * bulletSpeed;
-                bullet.shooterId = data.id;
+                bullet.shooterId = data.shooterId;
                 bullet.active = true;
             } else {
                 console.warn('Nenhuma bala disponível no pool para tiro recebido!');
