@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let players = [];
     let pentagons = [];
     let items = [];
-    let bullets = []; // Todas as balas ativas no servidor
+    let bullets = [];
     let gameOver = false;
     let isRestarting = false;
     let gameStarted = false;
@@ -551,8 +551,19 @@ document.addEventListener('DOMContentLoaded', () => {
             if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
                 clickY >= canvas.height / 2 + 50 && clickY <= canvas.height / 2 + 90) {
                 gameStarted = true;
+                gameOver = false; // Garantir que o jogo comece sem Game Over
+                isRestarting = false;
                 playerName = inputName;
                 player.name = playerName;
+                player.hp = 200; // Resetar HP ao entrar
+                player.score = 0;
+                player.playersEliminated = 0;
+                player.yellowPentagonsEliminated = 0;
+                player.purplePentagonsEliminated = 0;
+                player.x = canvas.width / 2;
+                player.y = canvas.height / 2;
+                player.velocityX = 0;
+                player.velocityY = 0;
                 loadSkin(playerName);
                 console.log('Emitindo join para:', playerName);
                 socket.emit('join', { name: playerName, width: canvas.width, height: canvas.height });
@@ -653,7 +664,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const deltaTime = Math.min((timestamp - lastTime) / 1000, 0.1);
             lastTime = timestamp;
 
-            console.log('Game loop running - gameStarted:', gameStarted, 'gameOver:', gameOver);
+            console.log('Game loop - gameStarted:', gameStarted, 'gameOver:', gameOver, 'player.hp:', player.hp);
             console.log('Players:', players.length > 0 ? players[0].name : 'Nenhum jogador');
             console.log('Pentagons:', pentagons.length);
             console.log('Items:', items.length);
@@ -712,7 +723,7 @@ document.addEventListener('DOMContentLoaded', () => {
             player.hp = serverPlayer.hp;
             player.score = serverPlayer.score;
             console.log(`Player ${player.name} HP updated to: ${player.hp}`);
-            if (previousHp > 0 && player.hp <= 0 && !gameOver && !isRestarting) {
+            if (previousHp > 0 && player.hp <= 0 && !gameOver && !isRestarting && gameStarted) {
                 gameOver = true;
                 console.log("Game Over triggered from server HP update");
             }
@@ -733,14 +744,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 })
                 .catch(err => console.error(`Erro ao verificar skin para ${playerName}:`, err));
-        } else if (!gameOver && !isRestarting && gameStarted) {
+            if (isRestarting && serverPlayer.hp > 0) {
+                isRestarting = false;
+                console.log("Restart completed, resuming normal play");
+            }
+        } else if (!gameOver && !isRestarting && gameStarted && players.length > 0) { // Adicionar verificação de players.length
             gameOver = true;
             player.hp = 0;
             console.log("Game Over triggered: Player not found in server list (destroyed)");
-        }
-        if (isRestarting && serverPlayer && serverPlayer.hp > 0) {
-            isRestarting = false;
-            console.log("Restart completed, resuming normal play");
         }
     });
 
@@ -756,13 +767,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     socket.on('shoot', (bullet) => {
         console.log('Shoot received:', bullet);
-        // Adicionar a bala à lista local, independentemente da posição
         bullets.push(bullet);
     });
 
     socket.on('bullets', (updatedBullets) => {
         console.log('Bullets recebidos:', updatedBullets);
-        bullets = updatedBullets || []; // Atualizar com todas as balas do servidor
+        bullets = updatedBullets || [];
     });
 
     socket.on('playerEliminated', (data) => {
