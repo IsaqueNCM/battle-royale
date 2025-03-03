@@ -97,6 +97,26 @@ document.addEventListener('DOMContentLoaded', () => {
         purplePentagonsEliminated: 0
     };
 
+    function resetGameState() {
+        gameOver = false;
+        isRestarting = false;
+        player.hp = 200;
+        player.score = 0;
+        player.playersEliminated = 0;
+        player.yellowPentagonsEliminated = 0;
+        player.purplePentagonsEliminated = 0;
+        player.x = canvas.width / 2;
+        player.y = canvas.height / 2;
+        player.velocityX = 0;
+        player.velocityY = 0;
+        keys.w = false;
+        keys.a = false;
+        keys.s = false;
+        keys.d = false;
+        bullets = [];
+        console.log('Estado do jogo resetado:', { gameStarted, gameOver, playerHp: player.hp });
+    }
+
     function drawPlayer(p) {
         const radius = 20;
         const diameter = radius * 2;
@@ -550,22 +570,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!gameStarted) {
             if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
                 clickY >= canvas.height / 2 + 50 && clickY <= canvas.height / 2 + 90) {
+                console.log('Iniciando jogo...');
+                resetGameState(); // Resetar estado antes de começar
                 gameStarted = true;
-                gameOver = false; // Garantir que o jogo comece sem Game Over
-                isRestarting = false;
                 playerName = inputName;
                 player.name = playerName;
-                player.hp = 200; // Resetar HP ao entrar
-                player.score = 0;
-                player.playersEliminated = 0;
-                player.yellowPentagonsEliminated = 0;
-                player.purplePentagonsEliminated = 0;
-                player.x = canvas.width / 2;
-                player.y = canvas.height / 2;
-                player.velocityX = 0;
-                player.velocityY = 0;
                 loadSkin(playerName);
-                console.log('Emitindo join para:', playerName);
                 socket.emit('join', { name: playerName, width: canvas.width, height: canvas.height });
                 console.log("Game started with name:", playerName);
             } else {
@@ -591,27 +601,15 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (gameOver) {
             if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
                 clickY >= canvas.height / 2 + 130 && clickY <= canvas.height / 2 + 170) {
-                gameOver = false;
-                isRestarting = true;
-                player.hp = 200;
-                player.score = 0;
-                player.playersEliminated = 0;
-                player.yellowPentagonsEliminated = 0;
-                player.purplePentagonsEliminated = 0;
-                player.x = canvas.width / 2;
-                player.y = canvas.height / 2;
-                player.velocityX = 0;
-                player.velocityY = 0;
+                console.log('Reiniciando jogo...');
+                resetGameState();
+                gameStarted = true; // Garantir que o jogo esteja ativo após reiniciar
                 playerName = newName || playerName;
                 player.name = playerName;
                 loadSkin(playerName);
                 socket.emit('leave');
                 socket.emit('join', { name: playerName, width: canvas.width, height: canvas.height });
                 console.log("Game restarted with name:", playerName);
-                keys.w = false;
-                keys.a = false;
-                keys.s = false;
-                keys.d = false;
             } else {
                 const socialLinks = [
                     { name: 'YOUTUBE', url: 'https://www.youtube.com/@GAMEPLAYS-h7t' },
@@ -748,7 +746,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 isRestarting = false;
                 console.log("Restart completed, resuming normal play");
             }
-        } else if (!gameOver && !isRestarting && gameStarted && players.length > 0) { // Adicionar verificação de players.length
+        } else if (!gameOver && !isRestarting && gameStarted && players.length > 0) {
             gameOver = true;
             player.hp = 0;
             console.log("Game Over triggered: Player not found in server list (destroyed)");
