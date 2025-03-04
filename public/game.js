@@ -527,7 +527,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.body.style.cursor = 'default';
             }
         } else {
-            player.angle = Math.atan2(mouseY - (canvas.height / 2), mouseX - (canvas.width / 2));
+            // Calcula a posição do mouse no mundo (levando em conta a câmera)
+            const worldMouseX = mouseX + gameState.cameraX;
+            const worldMouseY = mouseY + gameState.cameraY;
+            // Calcula o ângulo com base na posição do jogador no mundo
+            player.angle = Math.atan2(worldMouseY - player.y, worldMouseX - player.x);
         }
     });
 
