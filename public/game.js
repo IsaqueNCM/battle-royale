@@ -72,7 +72,8 @@ document.addEventListener('DOMContentLoaded', () => {
         topScores: [],
         lastElimination: { killer: '', victim: '', timestamp: 0 },
         cameraX: 0,
-        cameraY: 0
+        cameraY: 0,
+        isInputFocused: false
     };
 
     const player = {
@@ -109,6 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gameState.gameOver = false;
         gameState.isRestarting = false;
         gameState.gameStarted = false;
+        gameState.isInputFocused = false; // Remove o foco do input
         player.hp = 200;
         player.score = 0;
         player.playersEliminated = 0;
@@ -318,8 +320,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillStyle = 'black';
         ctx.fillText('Um jogo produzido por Isaque do Nascimento', canvas.width / 2, canvas.height / 2 - 100);
 
+        // Desenha o campo de input
         ctx.fillStyle = 'white';
-        ctx.strokeStyle = 'blue';
+        ctx.strokeStyle = gameState.isInputFocused ? `rgba(0, 0, 255, ${Math.sin(Date.now() / 200) * 0.5 + 0.5})` : 'blue';
         ctx.fillRect(canvas.width / 2 - 120, canvas.height / 2 - 20, 240, 40);
         ctx.strokeRect(canvas.width / 2 - 120, canvas.height / 2 - 20, 240, 40);
         ctx.fillStyle = 'black';
@@ -557,8 +560,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!gameState.gameStarted) {
             console.log('Verificando clique na tela inicial...');
+            // Verifica se o clique foi dentro do campo de input
             if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
-                clickY >= canvas.height / 2 + 50 && clickY <= canvas.height / 2 + 90) {
+                clickY >= canvas.height / 2 - 20 && clickY <= canvas.height / 2 + 20) {
+                gameState.isInputFocused = true;
+            } else if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
+                       clickY >= canvas.height / 2 + 50 && clickY <= canvas.height / 2 + 90) {
                 console.log('Botão "Jogar" clicado na tela inicial');
                 resetGameState();
                 gameState.playerName = gameState.inputName;
@@ -566,8 +573,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadSkin(gameState.playerName);
                 socket.emit('join', { name: gameState.playerName, width: canvas.width, height: canvas.height });
                 console.log("Join emitido com nome:", gameState.playerName);
+                gameState.isInputFocused = false; // Desativa o foco ao clicar em "Jogar"
             } else {
                 console.log('Clique fora do botão "Jogar" na tela inicial');
+                gameState.isInputFocused = false; // Desativa o foco se clicar fora
                 const socialLinks = [
                     { name: 'YOUTUBE', url: 'https://www.youtube.com/@GAMEPLAYS-h7t' },
                     { name: 'TWITCH', url: 'https://www.twitch.tv/isaque15e' },
@@ -591,13 +600,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.addEventListener('keydown', (event) => {
-        if (!gameState.gameStarted) {
+        if (!gameState.gameStarted && gameState.isInputFocused) {
             if (event.key === 'Backspace' && gameState.inputName.length > 0) {
                 gameState.inputName = gameState.inputName.slice(0, -1);
             } else if (event.key.length === 1 && gameState.inputName.length < 15) {
                 gameState.inputName += event.key;
             }
-        } else if (event.key in keys) {
+        } else if (gameState.gameStarted && event.key in keys) {
             keys[event.key] = true;
         }
     });
