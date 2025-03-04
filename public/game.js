@@ -333,10 +333,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Desenha o cursor piscante se o input estiver focado
         if (gameState.isInputFocused) {
             const textWidth = ctx.measureText(gameState.inputName).width;
-            const cursorX = canvas.width / 2 + textWidth / 2 + 2;
-            const cursorYTop = canvas.height / 2 - 5;
-            const cursorYBottom = canvas.height / 2 + 15;
-            ctx.strokeStyle = `rgba(0, 0, 0, ${Math.sin(Date.now() / 200) * 0.5 + 0.5})`;
+            const cursorX = canvas.width / 2 + textWidth / 2 + 2; // Posição horizontal após o texto
+            const cursorHeight = 20; // Altura fixa do cursor
+            const cursorYTop = canvas.height / 2 - cursorHeight / 2; // Centraliza verticalmente
+            const cursorYBottom = canvas.height / 2 + cursorHeight / 2;
+            ctx.strokeStyle = `rgba(0, 0, 0, ${Math.sin(Date.now() / 200) * 0.5 + 0.5})`; // Preto piscante
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(cursorX, cursorYTop);
