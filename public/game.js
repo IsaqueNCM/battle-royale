@@ -20,6 +20,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    const ARENA_WIDTH = 3840;
+    const ARENA_HEIGHT = 2160;
+
     function resizeCanvas() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
@@ -67,7 +70,9 @@ document.addEventListener('DOMContentLoaded', () => {
         playerName: "Jogador" + Math.floor(Math.random() * 1000),
         inputName: "Jogador" + Math.floor(Math.random() * 1000),
         topScores: [],
-        lastElimination: { killer: '', victim: '', timestamp: 0 }
+        lastElimination: { killer: '', victim: '', timestamp: 0 },
+        cameraX: 0,
+        cameraY: 0
     };
 
     const player = {
@@ -125,37 +130,47 @@ document.addEventListener('DOMContentLoaded', () => {
         const radius = 20;
         const diameter = radius * 2;
 
+        // Aplica o deslocamento da câmera
+        const screenX = p.x - gameState.cameraX;
+        const screenY = p.y - gameState.cameraY;
+
+        // Só desenha se estiver visível na tela
+        if (screenX + radius < 0 || screenX - radius > canvas.width || 
+            screenY + radius < 0 || screenY - radius > canvas.height) {
+            return;
+        }
+
         const skinUrl = activePlayerSkins.get(p.id);
         console.log(`Desenhando jogador ${p.name} (ID: ${p.id}) com skin: ${skinUrl || 'Nenhuma'}`);
         if (skinUrl && skinImages.has(skinUrl) && skinImages.get(skinUrl) && skinImages.get(skinUrl).complete && skinImages.get(skinUrl).naturalWidth > 0) {
             ctx.save();
             ctx.beginPath();
-            ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+            ctx.arc(screenX, screenY, radius, 0, Math.PI * 2);
             ctx.closePath();
             ctx.clip();
-            ctx.drawImage(skinImages.get(skinUrl), p.x - radius, p.y - radius, diameter, diameter);
+            ctx.drawImage(skinImages.get(skinUrl), screenX - radius, screenY - radius, diameter, diameter);
             ctx.restore();
         } else {
             ctx.beginPath();
-            ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+            ctx.arc(screenX, screenY, radius, 0, Math.PI * 2);
             ctx.fillStyle = p.id === player.id ? 'blue' : 'red';
             ctx.fill();
             ctx.closePath();
         }
 
         ctx.fillStyle = 'gray';
-        ctx.fillRect(p.x - 20, p.y - 35, 40, 5);
+        ctx.fillRect(screenX - 20, screenY - 35, 40, 5);
         ctx.fillStyle = 'red';
-        ctx.fillRect(p.x - 20, p.y - 35, (p.hp / 200) * 40, 5);
+        ctx.fillRect(screenX - 20, screenY - 35, (p.hp / 200) * 40, 5);
 
         ctx.fillStyle = 'black';
         ctx.font = '12px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText(p.name, p.x, p.y - 45);
+        ctx.fillText(p.name, screenX, screenY - 45);
 
         const weaponLength = 30;
-        const weaponX = p.x + Math.cos(p.angle) * weaponLength;
-        const weaponY = p.y + Math.sin(p.angle) * weaponLength;
+        const weaponX = screenX + Math.cos(p.angle) * weaponLength;
+        const weaponY = screenY + Math.sin(p.angle) * weaponLength;
         
         ctx.beginPath();
         ctx.arc(weaponX, weaponY, 7.5, 0, Math.PI * 2);
@@ -169,11 +184,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const sides = 5;
         const angleStep = (2 * Math.PI) / sides;
 
+        // Aplica o deslocamento da câmera
+        const screenX = p.x - gameState.cameraX;
+        const screenY = p.y - gameState.cameraY;
+
+        // Só desenha se estiver visível na tela
+        if (screenX + radius < 0 || screenX - radius > canvas.width || 
+            screenY + radius < 0 || screenY - radius > canvas.height) {
+            return;
+        }
+
         ctx.beginPath();
         for (let i = 0; i < sides; i++) {
             const angle = i * angleStep - Math.PI / 2;
-            const x = p.x + radius * Math.cos(angle);
-            const y = p.y + radius * Math.sin(angle);
+            const x = screenX + radius * Math.cos(angle);
+            const y = screenY + radius * Math.sin(angle);
             if (i === 0) {
                 ctx.moveTo(x, y);
             } else {
@@ -190,8 +215,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function drawItem(item) {
         const radius = 10;
+
+        // Aplica o deslocamento da câmera
+        const screenX = item.x - gameState.cameraX;
+        const screenY = item.y - gameState.cameraY;
+
+        // Só desenha se estiver visível na tela
+        if (screenX + radius < 0 || screenX - radius > canvas.width || 
+            screenY + radius < 0 || screenY - radius > canvas.height) {
+            return;
+        }
+
         ctx.beginPath();
-        ctx.arc(item.x, item.y, radius, 0, Math.PI * 2);
+        ctx.arc(screenX, screenY, radius, 0, Math.PI * 2);
         ctx.fillStyle = 'red';
         ctx.fill();
         ctx.closePath();
@@ -200,19 +236,25 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.font = '900 24px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('+', item.x, item.y);
+        ctx.fillText('+', screenX, screenY);
     }
 
     function drawBullets() {
         gameState.bullets.forEach(bullet => {
-            if (bullet.active && 
-                bullet.x >= 0 && bullet.x <= canvas.width && 
-                bullet.y >= 0 && bullet.y <= canvas.height) {
-                ctx.beginPath();
-                ctx.arc(bullet.x, bullet.y, 5, 0, Math.PI * 2);
-                ctx.fillStyle = 'green';
-                ctx.fill();
-                ctx.closePath();
+            if (bullet.active) {
+                // Aplica o deslocamento da câmera
+                const screenX = bullet.x - gameState.cameraX;
+                const screenY = bullet.y - gameState.cameraY;
+
+                // Só desenha se estiver visível na tela
+                if (screenX >= -5 && screenX <= canvas.width + 5 && 
+                    screenY >= -5 && screenY <= canvas.height + 5) {
+                    ctx.beginPath();
+                    ctx.arc(screenX, screenY, 5, 0, Math.PI * 2);
+                    ctx.fillStyle = 'green';
+                    ctx.fill();
+                    ctx.closePath();
+                }
             }
         });
     }
@@ -261,7 +303,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawStartScreen() {
-        // CORREÇÃO: Reduzida a opacidade para 0.1 para maior transparência
         ctx.fillStyle = 'rgba(128, 128, 128, 0.1)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -360,8 +401,9 @@ document.addEventListener('DOMContentLoaded', () => {
         player.x += player.velocityX * deltaTime;
         player.y += player.velocityY * deltaTime;
 
-        player.x = Math.max(20, Math.min(canvas.width - 20, player.x));
-        player.y = Math.max(20, Math.min(canvas.height - 20, player.y));
+        // Limita o jogador à arena inteira
+        player.x = Math.max(20, Math.min(ARENA_WIDTH - 20, player.x));
+        player.y = Math.max(20, Math.min(ARENA_HEIGHT - 20, player.y));
     }
 
     function checkPlayerPentagonCollisions() {
@@ -382,13 +424,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     player.x += repulsionX;
                     player.y += repulsionY;
-                    player.x = Math.max(20, Math.min(canvas.width - 20, player.x));
-                    player.y = Math.max(20, Math.min(canvas.height - 20, player.y));
+                    player.x = Math.max(20, Math.min(ARENA_WIDTH - 20, player.x));
+                    player.y = Math.max(20, Math.min(ARENA_HEIGHT - 20, player.y));
 
                     pentagon.x -= repulsionX;
                     pentagon.y -= repulsionY;
-                    pentagon.x = Math.max(20, Math.min(canvas.width - 20, pentagon.x));
-                    pentagon.y = Math.max(20, Math.min(canvas.height - 20, pentagon.y));
+                    pentagon.x = Math.max(20, Math.min(ARENA_WIDTH - 20, pentagon.x));
+                    pentagon.y = Math.max(20, Math.min(ARENA_HEIGHT - 20, pentagon.y));
 
                     socket.emit('updatePentagonPosition', {
                         pentagonId: pentagon.id,
@@ -460,6 +502,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function updateCamera() {
+        if (player.hp > 0 && gameState.gameStarted) {
+            // Centraliza a câmera no jogador
+            gameState.cameraX = player.x - canvas.width / 2;
+            gameState.cameraY = player.y - canvas.height / 2;
+
+            // Limita a câmera para não ultrapassar os limites da arena
+            gameState.cameraX = Math.max(0, Math.min(gameState.cameraX, ARENA_WIDTH - canvas.width));
+            gameState.cameraY = Math.max(0, Math.min(gameState.cameraY, ARENA_HEIGHT - canvas.height));
+        }
+    }
+
     canvas.addEventListener('mousemove', (event) => {
         const rect = canvas.getBoundingClientRect();
         const mouseX = event.clientX - rect.left;
@@ -473,7 +527,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.body.style.cursor = 'default';
             }
         } else {
-            player.angle = Math.atan2(mouseY - player.y, mouseX - player.x);
+            player.angle = Math.atan2(mouseY - (canvas.height / 2), mouseX - (canvas.width / 2));
         }
     });
 
@@ -563,23 +617,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Desenha o jogo ativo primeiro (fundo visível)
-            drawBullets();
-            gameState.items.forEach(item => drawItem(item));
-            gameState.pentagons.forEach(p => drawPentagon(p));
-            drawPlayers();
-            drawScoreboard();
-            drawTopScores();
+            if (gameState.gameStarted) {
+                updateCamera();
+                drawBullets();
+                gameState.items.forEach(item => drawItem(item));
+                gameState.pentagons.forEach(p => drawPentagon(p));
+                drawPlayers();
+                drawScoreboard();
+                drawTopScores();
+                drawLastElimination();
 
-            if (!gameState.gameStarted) {
-                drawStartScreen(); // Tela inicial sobreposta com baixa opacidade
-            } else {
                 movePlayer(deltaTime);
                 checkPlayerPentagonCollisions();
                 checkPlayerItemCollisions();
                 if (player.isShooting) shoot();
                 updatePlayer();
-                drawLastElimination();
+            } else {
+                gameState.cameraX = 0;
+                gameState.cameraY = 0;
+                drawStartScreen();
             }
         } catch (error) {
             console.error('Erro no gameLoop:', error.stack);
@@ -605,8 +661,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (distance > 50) {
                 player.x += dx * 0.1;
                 player.y += dy * 0.1;
-                player.x = Math.max(20, Math.min(canvas.width - 20, player.x));
-                player.y = Math.max(20, Math.min(canvas.height - 20, player.y));
+                player.x = Math.max(20, Math.min(ARENA_WIDTH - 20, player.x));
+                player.y = Math.max(20, Math.min(ARENA_HEIGHT - 20, player.y));
             }
             const previousHp = player.hp;
             player.hp = serverPlayer.hp;
