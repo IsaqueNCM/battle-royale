@@ -1,3 +1,4 @@
+// Atualização para forçar deploy - 05/03/2025
 document.addEventListener('DOMContentLoaded', () => {
     const socket = io('https://battle-royale-backend.onrender.com');
     socket.on('connect', () => {
