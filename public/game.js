@@ -23,10 +23,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const ARENA_WIDTH = 3840;
     const ARENA_HEIGHT = 2160;
+    const JOYSTICK_RADIUS = 50;
+    const THUMB_RADIUS = 20;
+    const JOYSTICK_MARGIN = 20;
 
     function resizeCanvas() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
+        gameState.joystickLeft.x = JOYSTICK_MARGIN + JOYSTICK_RADIUS;
+        gameState.joystickLeft.y = canvas.height - JOYSTICK_MARGIN - JOYSTICK_RADIUS;
+        gameState.joystickRight.x = canvas.width - JOYSTICK_MARGIN - JOYSTICK_RADIUS;
+        gameState.joystickRight.y = canvas.height - JOYSTICK_MARGIN - JOYSTICK_RADIUS;
         console.log('Canvas redimensionado:', { width: canvas.width, height: canvas.height });
     }
     resizeCanvas();
@@ -73,7 +80,9 @@ document.addEventListener('DOMContentLoaded', () => {
         lastElimination: { killer: '', victim: '', timestamp: 0 },
         cameraX: 0,
         cameraY: 0,
-        isInputFocused: false
+        isInputFocused: false,
+        joystickLeft: { active: false, x: 0, y: 0, thumbX: 0, thumbY: 0, touchId: null },
+        joystickRight: { active: false, x: 0, y: 0, thumbX: 0, thumbY: 0, touchId: null }
     };
 
     const player = {
@@ -125,6 +134,8 @@ document.addEventListener('DOMContentLoaded', () => {
         keys.s = false;
         keys.d = false;
         gameState.bullets = [];
+        gameState.joystickLeft.active = false;
+        gameState.joystickRight.active = false;
         console.log('Estado resetado:', { gameStarted: gameState.gameStarted, gameOver: gameState.gameOver, playerHp: player.hp });
     }
 
@@ -251,6 +262,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
+    }
+
+    function drawJoysticks() {
+        if (gameState.gameStarted) {
+            if (gameState.joystickLeft.active) {
+                ctx.beginPath();
+                ctx.arc(gameState.joystickLeft.x, gameState.joystickLeft.y, JOYSTICK_RADIUS, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0, 0, 255, 0.3)';
+                ctx.fill();
+                ctx.closePath();
+
+                ctx.beginPath();
+                ctx.arc(gameState.joystickLeft.thumbX, gameState.joystickLeft.thumbY, THUMB_RADIUS, 0, Math.PI * 2);
+                ctx.fillStyle = 'blue';
+                ctx.fill();
+                ctx.closePath();
+            }
+
+            if (gameState.joystickRight.active) {
+                ctx.beginPath();
+                ctx.arc(gameState.joystickRight.x, gameState.joystickRight.y, JOYSTICK_RADIUS, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+                ctx.fill();
+                ctx.closePath();
+
+                ctx.beginPath();
+                ctx.arc(gameState.joystickRight.thumbX, gameState.joystickRight.thumbY, THUMB_RADIUS, 0, Math.PI * 2);
+                ctx.fillStyle = 'red';
+                ctx.fill();
+                ctx.closePath();
+            }
+        }
     }
 
     function drawScoreboard() {
@@ -381,20 +424,31 @@ document.addEventListener('DOMContentLoaded', () => {
         let accelX = 0;
         let accelY = 0;
 
-        if (keys.w) accelY -= ACCELERATION;
-        if (keys.s) accelY += ACCELERATION;
-        if (keys.a) accelX -= ACCELERATION;
-        if (keys.d) accelX += ACCELERATION;
+        if (gameState.joystickLeft.active) {
+            const dx = gameState.joystickLeft.thumbX - gameState.joystickLeft.x;
+            const dy = gameState.joystickLeft.thumbY - gameState.joystickLeft.y;
+            const distance = Math.hypot(dx, dy);
+            const intensity = Math.min(distance / JOYSTICK_RADIUS, 1);
+            const angle = Math.atan2(dy, dx);
+
+            accelX = Math.cos(angle) * ACCELERATION * intensity;
+            accelY = Math.sin(angle) * ACCELERATION * intensity;
+        } else {
+            if (keys.w) accelY -= ACCELERATION;
+            if (keys.s) accelY += ACCELERATION;
+            if (keys.a) accelX -= ACCELERATION;
+            if (keys.d) accelX += ACCELERATION;
+        }
 
         player.velocityX += accelX * deltaTime;
         player.velocityY += accelY * deltaTime;
 
-        if (!keys.a && !keys.d) {
+        if (!accelX) {
             const frictionX = player.velocityX > 0 ? -FRICTION : FRICTION;
             player.velocityX += frictionX * deltaTime;
             if (Math.abs(player.velocityX) < 1) player.velocityX = 0;
         }
-        if (!keys.w && !keys.s) {
+        if (!accelY) {
             const frictionY = player.velocityY > 0 ? -FRICTION : FRICTION;
             player.velocityY += frictionY * deltaTime;
             if (Math.abs(player.velocityY) < 1) player.velocityY = 0;
@@ -505,6 +559,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function updatePlayer() {
         const now = Date.now();
         if (player.hp > 0 && player.id && now - lastMoveUpdate >= moveUpdateInterval) {
+            if (gameState.joystickRight.active) {
+                const dx = gameState.joystickRight.thumbX - gameState.joystickRight.x;
+                const dy = gameState.joystickRight.thumbY - gameState.joystickRight.y;
+                player.angle = Math.atan2(dy, dx);
+            }
             socket.emit('move', { x: player.x, y: player.y, angle: player.angle });
             lastMoveUpdate = now;
         }
@@ -532,7 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 document.body.style.cursor = 'default';
             }
-        } else {
+        } else if (!gameState.joystickRight.active) { // Só usa mouse se joystick direito não estiver ativo
             const worldMouseX = mouseX + gameState.cameraX;
             const worldMouseY = mouseY + gameState.cameraY;
             player.angle = Math.atan2(worldMouseY - player.y, worldMouseX - player.x);
@@ -540,15 +599,98 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     canvas.addEventListener('mousedown', (event) => {
-        if (event.button === 0 && player.hp > 0) {
+        if (event.button === 0 && player.hp > 0 && !gameState.joystickRight.active) {
             console.log('Mouse down at:', Date.now());
             player.isShooting = true;
         }
     });
 
     canvas.addEventListener('mouseup', () => {
-        player.isShooting = false;
+        if (!gameState.joystickRight.active) {
+            player.isShooting = false;
+        }
     });
+
+    canvas.addEventListener('touchstart', (event) => {
+        if (!gameState.gameStarted) return;
+        event.preventDefault();
+        const touches = event.changedTouches;
+        for (let i = 0; i < touches.length; i++) {
+            const touch = touches[i];
+            const touchX = touch.clientX - canvas.getBoundingClientRect().left;
+            const touchY = touch.clientY - canvas.getBoundingClientRect().top;
+
+            if (!gameState.joystickLeft.active &&
+                Math.hypot(touchX - gameState.joystickLeft.x, touchY - gameState.joystickLeft.y) < JOYSTICK_RADIUS * 2) {
+                gameState.joystickLeft.active = true;
+                gameState.joystickLeft.touchId = touch.identifier;
+                updateJoystick(gameState.joystickLeft, touchX, touchY);
+            }
+            else if (!gameState.joystickRight.active &&
+                Math.hypot(touchX - gameState.joystickRight.x, touchY - gameState.joystickRight.y) < JOYSTICK_RADIUS * 2) {
+                gameState.joystickRight.active = true;
+                gameState.joystickRight.touchId = touch.identifier;
+                updateJoystick(gameState.joystickRight, touchX, touchY);
+                player.isShooting = true;
+            }
+        }
+    });
+
+    canvas.addEventListener('touchmove', (event) => {
+        if (!gameState.gameStarted) return;
+        event.preventDefault();
+        const touches = event.changedTouches;
+        for (let i = 0; i < touches.length; i++) {
+            const touch = touches[i];
+            const touchX = touch.clientX - canvas.getBoundingClientRect().left;
+            const touchY = touch.clientY - canvas.getBoundingClientRect().top;
+
+            if (gameState.joystickLeft.active && touch.identifier === gameState.joystickLeft.touchId) {
+                updateJoystick(gameState.joystickLeft, touchX, touchY);
+            }
+            if (gameState.joystickRight.active && touch.identifier === gameState.joystickRight.touchId) {
+                updateJoystick(gameState.joystickRight, touchX, touchY);
+            }
+        }
+    });
+
+    canvas.addEventListener('touchend', (event) => {
+        if (!gameState.gameStarted) return;
+        event.preventDefault();
+        const touches = event.changedTouches;
+        for (let i = 0; i < touches.length; i++) {
+            const touch = touches[i];
+            if (gameState.joystickLeft.active && touch.identifier === gameState.joystickLeft.touchId) {
+                gameState.joystickLeft.active = false;
+                gameState.joystickLeft.touchId = null;
+                gameState.joystickLeft.thumbX = gameState.joystickLeft.x;
+                gameState.joystickLeft.thumbY = gameState.joystickLeft.y;
+            }
+            if (gameState.joystickRight.active && touch.identifier === gameState.joystickRight.touchId) {
+                gameState.joystickRight.active = false;
+                gameState.joystickRight.touchId = null;
+                gameState.joystickRight.thumbX = gameState.joystickRight.x;
+                gameState.joystickRight.thumbY = gameState.joystickRight.y;
+                player.isShooting = false;
+            }
+        }
+    });
+
+    function updateJoystick(joystick, touchX, touchY) {
+        const dx = touchX - joystick.x;
+        const dy = touchY - joystick.y;
+        const distance = Math.hypot(dx, dy);
+        const maxDistance = JOYSTICK_RADIUS;
+
+        if (distance > maxDistance) {
+            const angle = Math.atan2(dy, dx);
+            joystick.thumbX = joystick.x + Math.cos(angle) * maxDistance;
+            joystick.thumbY = joystick.y + Math.sin(angle) * maxDistance;
+        } else {
+            joystick.thumbX = touchX;
+            joystick.thumbY = touchY;
+        }
+    }
 
     gameState.newName = gameState.playerName;
 
@@ -607,7 +749,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 gameState.inputName += event.key;
             }
         } else if (gameState.gameStarted) {
-            const key = event.key.toLowerCase(); // Correção para Caps Lock
+            const key = event.key.toLowerCase();
             if (key in keys) {
                 keys[key] = true;
             }
@@ -615,7 +757,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.addEventListener('keyup', (event) => {
-        const key = event.key.toLowerCase(); // Correção para Caps Lock
+        const key = event.key.toLowerCase();
         if (key in keys) keys[key] = false;
     });
 
@@ -643,6 +785,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 drawScoreboard();
                 drawTopScores();
                 drawLastElimination();
+                drawJoysticks();
 
                 movePlayer(deltaTime);
                 checkPlayerPentagonCollisions();
