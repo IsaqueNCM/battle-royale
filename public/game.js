@@ -27,11 +27,47 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     console.log('5. Contexto 2D obtido');
 
+    // Definindo constantes e estado antes de qualquer uso
     const ARENA_WIDTH = 3840;
     const ARENA_HEIGHT = 2160;
     const JOYSTICK_RADIUS = 50;
     const THUMB_RADIUS = 20;
     const JOYSTICK_MARGIN = 20;
+
+    const gameState = {
+        players: [],
+        pentagons: [],
+        items: [],
+        bullets: [],
+        gameOver: false,
+        isRestarting: false,
+        gameStarted: false,
+        playerName: "Jogador" + Math.floor(Math.random() * 1000),
+        inputName: "Jogador" + Math.floor(Math.random() * 1000),
+        topScores: [],
+        lastElimination: { killer: '', victim: '', timestamp: 0 },
+        cameraX: 0,
+        cameraY: 0,
+        isInputFocused: false,
+        joystickLeft: { active: false, x: 0, y: 0, thumbX: 0, thumbY: 0, touchId: null },
+        joystickRight: { active: false, x: 0, y: 0, thumbX: 0, thumbY: 0, touchId: null }
+    };
+
+    const player = {
+        id: null,
+        name: gameState.playerName,
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+        velocityX: 0,
+        velocityY: 0,
+        angle: 0,
+        isShooting: false,
+        score: 0,
+        hp: 200,
+        playersEliminated: 0,
+        yellowPentagonsEliminated: 0,
+        purplePentagonsEliminated: 0
+    };
 
     function resizeCanvas() {
         canvas.width = window.innerWidth;
@@ -76,41 +112,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (skinUrl) loadSkin(skinUrl);
         });
     });
-
-    const gameState = {
-        players: [],
-        pentagons: [],
-        items: [],
-        bullets: [],
-        gameOver: false,
-        isRestarting: false,
-        gameStarted: false,
-        playerName: "Jogador" + Math.floor(Math.random() * 1000),
-        inputName: "Jogador" + Math.floor(Math.random() * 1000),
-        topScores: [],
-        lastElimination: { killer: '', victim: '', timestamp: 0 },
-        cameraX: 0,
-        cameraY: 0,
-        isInputFocused: false,
-        joystickLeft: { active: false, x: 0, y: 0, thumbX: 0, thumbY: 0, touchId: null },
-        joystickRight: { active: false, x: 0, y: 0, thumbX: 0, thumbY: 0, touchId: null }
-    };
-
-    const player = {
-        id: null,
-        name: gameState.playerName,
-        x: window.innerWidth / 2,
-        y: window.innerHeight / 2,
-        velocityX: 0,
-        velocityY: 0,
-        angle: 0,
-        isShooting: false,
-        score: 0,
-        hp: 200,
-        playersEliminated: 0,
-        yellowPentagonsEliminated: 0,
-        purplePentagonsEliminated: 0
-    };
 
     const eliminationDisplayTime = 5000;
     const bulletCooldown = 500;
