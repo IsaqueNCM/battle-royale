@@ -27,7 +27,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     console.log('5. Contexto 2D obtido');
 
-    // Definindo constantes e estado antes de qualquer uso
     const ARENA_WIDTH = 3840;
     const ARENA_HEIGHT = 2160;
     const JOYSTICK_RADIUS = 50;
@@ -625,7 +624,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     canvas.addEventListener('touchstart', (event) => {
         console.log('Touchstart detectado');
-        if (!gameState.gameStarted) return;
+        if (!gameState.gameStarted) {
+            const rect = canvas.getBoundingClientRect();
+            const touchX = event.touches[0].clientX - rect.left;
+            const touchY = event.touches[0].clientY - rect.top;
+
+            // Verifica se o toque foi no input
+            if (touchX >= canvas.width / 2 - 120 && touchX <= canvas.width / 2 + 120 &&
+                touchY >= canvas.height / 2 - 20 && touchY <= canvas.height / 2 + 20) {
+                gameState.isInputFocused = true;
+                document.getElementById('hiddenInput').focus(); // Foca no input oculto
+            }
+            // Verifica se o toque foi no botão "Jogar"
+            else if (touchX >= canvas.width / 2 - 120 && touchX <= canvas.width / 2 + 120 &&
+                     touchY >= canvas.height / 2 + 50 && touchY <= canvas.height / 2 + 90) {
+                startGame();
+            }
+            return;
+        }
         event.preventDefault();
         const touches = event.changedTouches;
         for (let i = 0; i < touches.length; i++) {
@@ -708,6 +724,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     gameState.newName = gameState.playerName;
 
+    // Função para iniciar o jogo
+    function startGame() {
+        console.log('Botão "Jogar" acionado');
+        resetGameState();
+        gameState.playerName = gameState.inputName;
+        player.name = gameState.playerName;
+        loadSkin(gameState.playerName);
+        socket.emit('join', { name: gameState.playerName, width: canvas.width, height: canvas.height });
+        console.log("Join emitido com nome:", gameState.playerName);
+        gameState.isInputFocused = false;
+        document.getElementById('hiddenInput').blur(); // Remove o foco do input oculto
+    }
+
     canvas.addEventListener('click', (event) => {
         const rect = canvas.getBoundingClientRect();
         const clickX = event.clientX - rect.left;
@@ -720,16 +749,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
                 clickY >= canvas.height / 2 - 20 && clickY <= canvas.height / 2 + 20) {
                 gameState.isInputFocused = true;
+                document.getElementById('hiddenInput').focus(); // Foca no input oculto
             } else if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
                        clickY >= canvas.height / 2 + 50 && clickY <= canvas.height / 2 + 90) {
-                console.log('Botão "Jogar" clicado na tela inicial');
-                resetGameState();
-                gameState.playerName = gameState.inputName;
-                player.name = gameState.playerName;
-                loadSkin(gameState.playerName);
-                socket.emit('join', { name: gameState.playerName, width: canvas.width, height: canvas.height });
-                console.log("Join emitido com nome:", gameState.playerName);
-                gameState.isInputFocused = false;
+                startGame();
             } else {
                 console.log('Clique fora do botão "Jogar" na tela inicial');
                 gameState.isInputFocused = false;
@@ -755,8 +778,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Criar um input oculto para capturar o teclado no mobile
+    const hiddenInput = document.createElement('input');
+    hiddenInput.id = 'hiddenInput';
+    hiddenInput.type = 'text';
+    hiddenInput.style.position = 'absolute';
+    hiddenInput.style.opacity = '0';
+    hiddenInput.style.width = '1px';
+    hiddenInput.style.height = '1px';
+    document.body.appendChild(hiddenInput);
+
+    // Sincronizar o input oculto com gameState.inputName
+    hiddenInput.addEventListener('input', (event) => {
+        gameState.inputName = event.target.value.slice(0, 15); // Limite de 15 caracteres
+    });
+
+    // Capturar "Enter" para iniciar o jogo
+    hiddenInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !gameState.gameStarted) {
+            startGame();
+        }
+    });
+
     document.addEventListener('keydown', (event) => {
-        if (!gameState.gameStarted && gameState.isInputFocused) {
+        if (!gameState.gameStarted && gameState.isInputFocused && hiddenInput !== document.activeElement) {
             if (event.key === 'Backspace' && gameState.inputName.length > 0) {
                 gameState.inputName = gameState.inputName.slice(0, -1);
             } else if (event.key.length === 1 && gameState.inputName.length < 15) {
