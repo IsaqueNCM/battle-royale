@@ -1,10 +1,13 @@
 // Atualização para forçar deploy - 05/03/2025
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('1. DOMContentLoaded disparado');
+
     const socket = io('https://battle-royale-backend.onrender.com');
+    console.log('2. Socket.IO inicializado');
+
     socket.on('connect', () => {
-        console.log('Conectado ao servidor com sucesso!');
+        console.log('3. Conectado ao servidor com sucesso! ID:', socket.id);
         player.id = socket.id;
-        console.log(`Player connected with ID: ${player.id}`);
     });
     socket.on('connect_error', (error) => {
         console.error('Erro ao conectar ao servidor:', error);
@@ -12,14 +15,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const canvas = document.getElementById('gameCanvas');
     if (!canvas) {
-        console.error('Canvas não encontrado! Verifique o HTML (id="gameCanvas")');
+        console.error('4. Canvas não encontrado! Verifique o HTML (id="gameCanvas")');
         return;
     }
+    console.log('4. Canvas encontrado:', canvas);
+
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-        console.error('Não foi possível obter o contexto 2d do canvas');
+        console.error('5. Não foi possível obter o contexto 2d do canvas');
         return;
     }
+    console.log('5. Contexto 2D obtido');
 
     const ARENA_WIDTH = 3840;
     const ARENA_HEIGHT = 2160;
@@ -32,12 +38,17 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.height = window.innerHeight;
         gameState.joystickLeft.x = JOYSTICK_MARGIN + JOYSTICK_RADIUS;
         gameState.joystickLeft.y = canvas.height - JOYSTICK_MARGIN - JOYSTICK_RADIUS;
+        gameState.joystickLeft.thumbX = gameState.joystickLeft.x;
+        gameState.joystickLeft.thumbY = gameState.joystickLeft.y;
         gameState.joystickRight.x = canvas.width - JOYSTICK_MARGIN - JOYSTICK_RADIUS;
         gameState.joystickRight.y = canvas.height - JOYSTICK_MARGIN - JOYSTICK_RADIUS;
-        console.log('Canvas redimensionado:', { width: canvas.width, height: canvas.height });
+        gameState.joystickRight.thumbX = gameState.joystickRight.x;
+        gameState.joystickRight.thumbY = gameState.joystickRight.y;
+        console.log('6. Canvas redimensionado:', { width: canvas.width, height: canvas.height });
     }
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
+    console.log('7. Evento de resize adicionado');
 
     const skinImages = new Map();
     const activePlayerSkins = new Map();
@@ -591,7 +602,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 document.body.style.cursor = 'default';
             }
-        } else if (!gameState.joystickRight.active) { // Só usa mouse se joystick direito não estiver ativo
+        } else if (!gameState.joystickRight.active) {
             const worldMouseX = mouseX + gameState.cameraX;
             const worldMouseY = mouseY + gameState.cameraY;
             player.angle = Math.atan2(worldMouseY - player.y, worldMouseX - player.x);
@@ -612,6 +623,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     canvas.addEventListener('touchstart', (event) => {
+        console.log('Touchstart detectado');
         if (!gameState.gameStarted) return;
         event.preventDefault();
         const touches = event.changedTouches;
@@ -619,6 +631,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const touch = touches[i];
             const touchX = touch.clientX - canvas.getBoundingClientRect().left;
             const touchY = touch.clientY - canvas.getBoundingClientRect().top;
+            console.log('Touch em:', touchX, touchY);
 
             if (!gameState.joystickLeft.active &&
                 Math.hypot(touchX - gameState.joystickLeft.x, touchY - gameState.joystickLeft.y) < JOYSTICK_RADIUS * 2) {
@@ -764,19 +777,16 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastTime = performance.now();
 
     function gameLoop(timestamp) {
+        console.log('9. gameLoop iniciado, timestamp:', timestamp);
         try {
             const deltaTime = Math.min((timestamp - lastTime) / 1000, 0.1);
             lastTime = timestamp;
 
-            console.log('Game loop - gameStarted:', gameState.gameStarted, 'gameOver:', gameState.gameOver, 'player.hp:', player.hp);
-            console.log('Players:', gameState.players.length > 0 ? gameState.players[0].name : 'Nenhum jogador');
-            console.log('Pentagons:', gameState.pentagons.length);
-            console.log('Items:', gameState.items.length);
-            console.log('Bullets:', gameState.bullets.length);
-
+            console.log('10. Canvas limpo');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             if (gameState.gameStarted) {
+                console.log('11. Jogo iniciado, atualizando e desenhando');
                 updateCamera();
                 drawBullets();
                 gameState.items.forEach(item => drawItem(item));
@@ -793,6 +803,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (player.isShooting) shoot();
                 updatePlayer();
             } else {
+                console.log('11. Jogo não iniciado, desenhando tela inicial');
                 gameState.cameraX = 0;
                 gameState.cameraY = 0;
                 drawStartScreen();
@@ -800,10 +811,10 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error('Erro no gameLoop:', error.stack);
         }
-
         requestAnimationFrame(gameLoop);
     }
 
+    console.log('8. Iniciando gameLoop');
     requestAnimationFrame(gameLoop);
 
     socket.on('players', (updatedPlayers) => {
