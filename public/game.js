@@ -59,7 +59,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Estado isolado por instância
     const gameState = {
         players: [],
         pentagons: [],
@@ -111,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gameState.gameOver = false;
         gameState.isRestarting = false;
         gameState.gameStarted = false;
-        gameState.isInputFocused = false; // Remove o foco do input
+        gameState.isInputFocused = false;
         player.hp = 200;
         player.score = 0;
         player.playersEliminated = 0;
@@ -133,11 +132,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const radius = 20;
         const diameter = radius * 2;
 
-        // Aplica o deslocamento da câmera
         const screenX = p.x - gameState.cameraX;
         const screenY = p.y - gameState.cameraY;
 
-        // Só desenha se estiver visível na tela
         if (screenX + radius < 0 || screenX - radius > canvas.width || 
             screenY + radius < 0 || screenY - radius > canvas.height) {
             return;
@@ -187,11 +184,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const sides = 5;
         const angleStep = (2 * Math.PI) / sides;
 
-        // Aplica o deslocamento da câmera
         const screenX = p.x - gameState.cameraX;
         const screenY = p.y - gameState.cameraY;
 
-        // Só desenha se estiver visível na tela
         if (screenX + radius < 0 || screenX - radius > canvas.width || 
             screenY + radius < 0 || screenY - radius > canvas.height) {
             return;
@@ -219,11 +214,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function drawItem(item) {
         const radius = 10;
 
-        // Aplica o deslocamento da câmera
         const screenX = item.x - gameState.cameraX;
         const screenY = item.y - gameState.cameraY;
 
-        // Só desenha se estiver visível na tela
         if (screenX + radius < 0 || screenX - radius > canvas.width || 
             screenY + radius < 0 || screenY - radius > canvas.height) {
             return;
@@ -245,11 +238,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function drawBullets() {
         gameState.bullets.forEach(bullet => {
             if (bullet.active) {
-                // Aplica o deslocamento da câmera
                 const screenX = bullet.x - gameState.cameraX;
                 const screenY = bullet.y - gameState.cameraY;
 
-                // Só desenha se estiver visível na tela
                 if (screenX >= -5 && screenX <= canvas.width + 5 && 
                     screenY >= -5 && screenY <= canvas.height + 5) {
                     ctx.beginPath();
@@ -321,7 +312,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillStyle = 'black';
         ctx.fillText('Um jogo produzido por Isaque do Nascimento', canvas.width / 2, canvas.height / 2 - 100);
 
-        // Desenha o campo de input
         ctx.fillStyle = 'white';
         ctx.strokeStyle = gameState.isInputFocused ? `rgba(0, 0, 255, ${Math.sin(Date.now() / 200) * 0.5 + 0.5})` : 'blue';
         ctx.fillRect(canvas.width / 2 - 120, canvas.height / 2 - 20, 240, 40);
@@ -331,14 +321,13 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.textAlign = 'center';
         ctx.fillText(gameState.inputName, canvas.width / 2, canvas.height / 2 + 5);
 
-        // Desenha o cursor piscante se o input estiver focado
         if (gameState.isInputFocused) {
             const textWidth = ctx.measureText(gameState.inputName).width;
-            const cursorX = canvas.width / 2 + textWidth / 2 + 2; // Posição horizontal após o texto
-            const cursorHeight = 20; // Altura fixa do cursor
-            const cursorYTop = canvas.height / 2 - cursorHeight / 2; // Centraliza verticalmente
+            const cursorX = canvas.width / 2 + textWidth / 2 + 2;
+            const cursorHeight = 20;
+            const cursorYTop = canvas.height / 2 - cursorHeight / 2;
             const cursorYBottom = canvas.height / 2 + cursorHeight / 2;
-            ctx.strokeStyle = `rgba(0, 0, 0, ${Math.sin(Date.now() / 200) * 0.5 + 0.5})`; // Preto piscante
+            ctx.strokeStyle = `rgba(0, 0, 0, ${Math.sin(Date.now() / 200) * 0.5 + 0.5})`;
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(cursorX, cursorYTop);
@@ -421,7 +410,6 @@ document.addEventListener('DOMContentLoaded', () => {
         player.x += player.velocityX * deltaTime;
         player.y += player.velocityY * deltaTime;
 
-        // Limita o jogador à arena inteira
         player.x = Math.max(20, Math.min(ARENA_WIDTH - 20, player.x));
         player.y = Math.max(20, Math.min(ARENA_HEIGHT - 20, player.y));
     }
@@ -524,11 +512,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateCamera() {
         if (player.hp > 0 && gameState.gameStarted) {
-            // Centraliza a câmera no jogador
             gameState.cameraX = player.x - canvas.width / 2;
             gameState.cameraY = player.y - canvas.height / 2;
 
-            // Limita a câmera para não ultrapassar os limites da arena
             gameState.cameraX = Math.max(0, Math.min(gameState.cameraX, ARENA_WIDTH - canvas.width));
             gameState.cameraY = Math.max(0, Math.min(gameState.cameraY, ARENA_HEIGHT - canvas.height));
         }
@@ -547,10 +533,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.body.style.cursor = 'default';
             }
         } else {
-            // Calcula a posição do mouse no mundo (levando em conta a câmera)
             const worldMouseX = mouseX + gameState.cameraX;
             const worldMouseY = mouseY + gameState.cameraY;
-            // Calcula o ângulo com base na posição do jogador no mundo
             player.angle = Math.atan2(worldMouseY - player.y, worldMouseX - player.x);
         }
     });
@@ -577,7 +561,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!gameState.gameStarted) {
             console.log('Verificando clique na tela inicial...');
-            // Verifica se o clique foi dentro do campo de input
             if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
                 clickY >= canvas.height / 2 - 20 && clickY <= canvas.height / 2 + 20) {
                 gameState.isInputFocused = true;
@@ -590,10 +573,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadSkin(gameState.playerName);
                 socket.emit('join', { name: gameState.playerName, width: canvas.width, height: canvas.height });
                 console.log("Join emitido com nome:", gameState.playerName);
-                gameState.isInputFocused = false; // Desativa o foco ao clicar em "Jogar"
+                gameState.isInputFocused = false;
             } else {
                 console.log('Clique fora do botão "Jogar" na tela inicial');
-                gameState.isInputFocused = false; // Desativa o foco se clicar fora
+                gameState.isInputFocused = false;
                 const socialLinks = [
                     { name: 'YOUTUBE', url: 'https://www.youtube.com/@GAMEPLAYS-h7t' },
                     { name: 'TWITCH', url: 'https://www.twitch.tv/isaque15e' },
@@ -623,13 +606,17 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (event.key.length === 1 && gameState.inputName.length < 15) {
                 gameState.inputName += event.key;
             }
-        } else if (gameState.gameStarted && event.key in keys) {
-            keys[event.key] = true;
+        } else if (gameState.gameStarted) {
+            const key = event.key.toLowerCase(); // Correção para Caps Lock
+            if (key in keys) {
+                keys[key] = true;
+            }
         }
     });
 
     document.addEventListener('keyup', (event) => {
-        if (event.key in keys) keys[event.key] = false;
+        const key = event.key.toLowerCase(); // Correção para Caps Lock
+        if (key in keys) keys[key] = false;
     });
 
     let lastTime = performance.now();
