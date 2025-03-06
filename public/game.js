@@ -2,7 +2,11 @@
 document.addEventListener('DOMContentLoaded', () => {
     console.log('1. DOMContentLoaded disparado');
 
-    const socket = io('https://battle-royale-backend.onrender.com');
+    const socket = io('https://battle-royale-backend.onrender.com', {
+        reconnection: true, // Tenta reconectar automaticamente
+        reconnectionAttempts: 5, // Número máximo de tentativas de reconexão
+        reconnectionDelay: 1000 // Delay entre tentativas
+    });
     console.log('2. Socket.IO inicializado');
 
     socket.on('connect', () => {
@@ -633,11 +637,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (touchX >= canvas.width / 2 - 120 && touchX <= canvas.width / 2 + 120 &&
                 touchY >= canvas.height / 2 - 20 && touchY <= canvas.height / 2 + 20) {
                 gameState.isInputFocused = true;
-                document.getElementById('hiddenInput').focus(); // Foca no input oculto
+                document.getElementById('hiddenInput').focus();
             }
             // Verifica se o toque foi no botão "Jogar"
             else if (touchX >= canvas.width / 2 - 120 && touchX <= canvas.width / 2 + 120 &&
                      touchY >= canvas.height / 2 + 50 && touchY <= canvas.height / 2 + 90) {
+                console.log('Toque no botão Jogar detectado');
                 startGame();
             }
             return;
@@ -724,7 +729,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     gameState.newName = gameState.playerName;
 
-    // Função para iniciar o jogo
     function startGame() {
         console.log('Botão "Jogar" acionado');
         resetGameState();
@@ -734,7 +738,10 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.emit('join', { name: gameState.playerName, width: canvas.width, height: canvas.height });
         console.log("Join emitido com nome:", gameState.playerName);
         gameState.isInputFocused = false;
-        document.getElementById('hiddenInput').blur(); // Remove o foco do input oculto
+        document.getElementById('hiddenInput').blur();
+        // Forçar o início do jogo localmente enquanto aguarda confirmação do servidor
+        gameState.gameStarted = true; // Alteração: Inicia o jogo imediatamente
+        console.log('Jogo iniciado localmente, aguardando confirmação do servidor');
     }
 
     canvas.addEventListener('click', (event) => {
@@ -749,9 +756,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
                 clickY >= canvas.height / 2 - 20 && clickY <= canvas.height / 2 + 20) {
                 gameState.isInputFocused = true;
-                document.getElementById('hiddenInput').focus(); // Foca no input oculto
+                document.getElementById('hiddenInput').focus();
             } else if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
                        clickY >= canvas.height / 2 + 50 && clickY <= canvas.height / 2 + 90) {
+                console.log('Clique no botão Jogar detectado');
                 startGame();
             } else {
                 console.log('Clique fora do botão "Jogar" na tela inicial');
@@ -778,7 +786,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Criar um input oculto para capturar o teclado no mobile
     const hiddenInput = document.createElement('input');
     hiddenInput.id = 'hiddenInput';
     hiddenInput.type = 'text';
@@ -788,12 +795,10 @@ document.addEventListener('DOMContentLoaded', () => {
     hiddenInput.style.height = '1px';
     document.body.appendChild(hiddenInput);
 
-    // Sincronizar o input oculto com gameState.inputName
     hiddenInput.addEventListener('input', (event) => {
-        gameState.inputName = event.target.value.slice(0, 15); // Limite de 15 caracteres
+        gameState.inputName = event.target.value.slice(0, 15);
     });
 
-    // Capturar "Enter" para iniciar o jogo
     hiddenInput.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' && !gameState.gameStarted) {
             startGame();
