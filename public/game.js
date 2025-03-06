@@ -3,9 +3,10 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('1. DOMContentLoaded disparado');
 
     const socket = io('https://battle-royale-backend.onrender.com', {
-        reconnection: true, // Tenta reconectar automaticamente
-        reconnectionAttempts: 5, // Número máximo de tentativas de reconexão
-        reconnectionDelay: 1000 // Delay entre tentativas
+        reconnection: true,
+        reconnectionAttempts: 10, // Aumentado para mais tentativas
+        reconnectionDelay: 1000,
+        timeout: 20000 // Aumentado o tempo limite para conexão
     });
     console.log('2. Socket.IO inicializado');
 
@@ -14,7 +15,13 @@ document.addEventListener('DOMContentLoaded', () => {
         player.id = socket.id;
     });
     socket.on('connect_error', (error) => {
-        console.error('Erro ao conectar ao servidor:', error);
+        console.error('Erro ao conectar ao servidor:', error.message);
+    });
+    socket.on('reconnect_attempt', (attempt) => {
+        console.log('Tentativa de reconexão:', attempt);
+    });
+    socket.on('disconnect', () => {
+        console.log('Desconectado do servidor');
     });
 
     const canvas = document.getElementById('gameCanvas');
@@ -568,7 +575,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawPlayers() {
-        gameState.players.forEach(p => drawPlayer(p));
+        // Desenhar o jogador local mesmo que a lista de jogadores do servidor esteja vazia
+        if (player.hp > 0) drawPlayer(player);
+        gameState.players.forEach(p => {
+            if (p.id !== player.id) drawPlayer(p); // Evitar duplicação do jogador local
+        });
     }
 
     function updatePlayer() {
@@ -633,15 +644,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const touchX = event.touches[0].clientX - rect.left;
             const touchY = event.touches[0].clientY - rect.top;
 
-            // Verifica se o toque foi no input
+            console.log('Toque em:', { touchX, touchY });
             if (touchX >= canvas.width / 2 - 120 && touchX <= canvas.width / 2 + 120 &&
                 touchY >= canvas.height / 2 - 20 && touchY <= canvas.height / 2 + 20) {
                 gameState.isInputFocused = true;
                 document.getElementById('hiddenInput').focus();
-            }
-            // Verifica se o toque foi no botão "Jogar"
-            else if (touchX >= canvas.width / 2 - 120 && touchX <= canvas.width / 2 + 120 &&
-                     touchY >= canvas.height / 2 + 50 && touchY <= canvas.height / 2 + 90) {
+                console.log('Toque no campo de entrada');
+            } else if (touchX >= canvas.width / 2 - 120 && touchX <= canvas.width / 2 + 120 &&
+                       touchY >= canvas.height / 2 + 50 && touchY <= canvas.height / 2 + 90) {
                 console.log('Toque no botão Jogar detectado');
                 startGame();
             }
@@ -660,8 +670,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 gameState.joystickLeft.active = true;
                 gameState.joystickLeft.touchId = touch.identifier;
                 updateJoystick(gameState.joystickLeft, touchX, touchY);
-            }
-            else if (!gameState.joystickRight.active &&
+            } else if (!gameState.joystickRight.active &&
                 Math.hypot(touchX - gameState.joystickRight.x, touchY - gameState.joystickRight.y) < JOYSTICK_RADIUS * 2) {
                 gameState.joystickRight.active = true;
                 gameState.joystickRight.touchId = touch.identifier;
@@ -669,7 +678,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 player.isShooting = true;
             }
         }
-    });
+    }, { passive: true }); // Corrigido para evento passivo
 
     canvas.addEventListener('touchmove', (event) => {
         if (!gameState.gameStarted) return;
@@ -687,7 +696,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateJoystick(gameState.joystickRight, touchX, touchY);
             }
         }
-    });
+    }, { passive: true }); // Corrigido para evento passivo
 
     canvas.addEventListener('touchend', (event) => {
         if (!gameState.gameStarted) return;
@@ -739,8 +748,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("Join emitido com nome:", gameState.playerName);
         gameState.isInputFocused = false;
         document.getElementById('hiddenInput').blur();
-        // Forçar o início do jogo localmente enquanto aguarda confirmação do servidor
-        gameState.gameStarted = true; // Alteração: Inicia o jogo imediatamente
+        gameState.gameStarted = true;
         console.log('Jogo iniciado localmente, aguardando confirmação do servidor');
     }
 
@@ -757,6 +765,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 clickY >= canvas.height / 2 - 20 && clickY <= canvas.height / 2 + 20) {
                 gameState.isInputFocused = true;
                 document.getElementById('hiddenInput').focus();
+                console.log('Clique no campo de entrada');
             } else if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
                        clickY >= canvas.height / 2 + 50 && clickY <= canvas.height / 2 + 90) {
                 console.log('Clique no botão Jogar detectado');
@@ -801,6 +810,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     hiddenInput.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' && !gameState.gameStarted) {
+            console.log('Enter pressionado para iniciar o jogo');
             startGame();
         }
     });
