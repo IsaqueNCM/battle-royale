@@ -420,7 +420,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawStartScreen() {
-        ctx.fillStyle = 'rgba(128, 128, 128, 0.1)';
+        ctx.fillStyle = 'rgba(128, 128, 128, 0.9)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         ctx.font = 'bold 50px Arial';
