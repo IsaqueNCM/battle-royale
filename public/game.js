@@ -66,8 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hp: 200,
         playersEliminated: 0,
         yellowPentagonsEliminated: 0,
-        purplePentagonsEliminated: 0,
-        isGhost: false // Novo estado para indicar "fantasma"
+        purplePentagonsEliminated: 0
     };
 
     function resizeCanvas() {
@@ -146,7 +145,6 @@ document.addEventListener('DOMContentLoaded', () => {
         player.y = canvas.height / 2;
         player.velocityX = 0;
         player.velocityY = 0;
-        player.isGhost = false;
         keys.w = false;
         keys.a = false;
         keys.s = false;
@@ -158,7 +156,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawPlayer(p) {
-        if (p.hp <= 0) return; // Não desenhar jogadores mortos (fantasmas)
         const radius = 20;
         const diameter = radius * 2;
 
@@ -286,8 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (screenX >= -5 && screenX <= canvas.width + 5 && 
                     screenY >= -5 && screenY <= canvas.height + 5) {
                     if (bullet.shooterId && bullet.shooterId.startsWith('boss_')) {
-                        // Aumentar tamanho das balas perseguidoras
-                        const size = 15; // Aumentado de 10 para 15
+                        const size = 15;
                         ctx.save();
                         ctx.translate(screenX, screenY);
                         ctx.rotate(bullet.angle + Math.PI / 2);
@@ -461,7 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillStyle = 'rgba(0, 200, 0, 0.9)';
         ctx.strokeStyle = 'darkgreen';
         ctx.fillRect(canvas.width / 2 - 120, canvas.height / 2 + 50, 240, 40);
-        ctx.strokeRect(canvas.width / 2 - 120, canvas.height / 2 + 50, 240, 40);
+        ctx.strokeRect(canvas.width / 2 - 120, canvas.height / 2 + 50, furthermore240, 40);
         ctx.fillStyle = 'white';
         ctx.font = '20px Arial';
         ctx.fillText('Jogar', canvas.width / 2, canvas.height / 2 + 75);
@@ -499,7 +495,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function movePlayer(deltaTime) {
-        // Permitir movimento mesmo como fantasma
+        if (player.hp <= 0) return; // Só mover se estiver vivo
+
         let accelX = 0;
         let accelY = 0;
 
@@ -616,7 +613,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function checkPlayerItemCollisions() {
-        if (player.hp <= 0) return; // Fantasmas não coletam itens
+        if (player.hp <= 0) return; // Só coletar itens se estiver vivo
         gameState.items.forEach(item => {
             const dx = player.x - item.x;
             const dy = player.y - item.y;
@@ -641,7 +638,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function shoot() {
         const currentTime = Date.now();
-        if (currentTime - lastShotTime > bulletCooldown) { // Removido player.hp > 0 para permitir disparos como fantasma
+        if (currentTime - lastShotTime > bulletCooldown && player.hp > 0) { // Só atirar se estiver vivo
             lastShotTime = currentTime;
 
             const weaponLength = 30;
@@ -663,7 +660,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updatePlayer() {
         const now = Date.now();
-        if (player.id && now - lastMoveUpdate >= moveUpdateInterval) {
+        if (player.hp > 0 && player.id && now - lastMoveUpdate >= moveUpdateInterval) { // Só atualizar se estiver vivo
             if (gameState.joystickRight.active) {
                 const dx = gameState.joystickRight.thumbX - gameState.joystickRight.x;
                 const dy = gameState.joystickRight.thumbY - gameState.joystickRight.y;
@@ -675,7 +672,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateCamera() {
-        if (gameState.gameStarted) { // Sempre atualizar câmera, mesmo como fantasma
+        if (player.hp > 0 && gameState.gameStarted) { // Só atualizar câmera se estiver vivo
             gameState.cameraX = player.x - canvas.width / 2;
             gameState.cameraY = player.y - canvas.height / 2;
 
@@ -696,7 +693,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 document.body.style.cursor = 'default';
             }
-        } else if (!gameState.joystickRight.active) {
+        } else if (!gameState.joystickRight.active && player.hp > 0) { // Só atualizar ângulo se vivo
             const worldMouseX = mouseX + gameState.cameraX;
             const worldMouseY = mouseY + gameState.cameraY;
             player.angle = Math.atan2(worldMouseY - player.y, worldMouseX - player.x);
@@ -704,7 +701,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     canvas.addEventListener('mousedown', (event) => {
-        if (event.button === 0 && !gameState.joystickRight.active) {
+        if (event.button === 0 && player.hp > 0 && !gameState.joystickRight.active) { // Só atirar se vivo
             console.log('Mouse down at:', Date.now());
             player.isShooting = true;
         }
@@ -742,13 +739,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const touchY = touch.clientY - canvas.getBoundingClientRect().top;
             console.log('Touch em:', touchX, touchY);
 
-            if (!gameState.joystickLeft.active &&
+            if (!gameState.joystickLeft.active && player.hp > 0 &&
                 Math.hypot(touchX - gameState.joystickLeft.x, touchY - gameState.joystickLeft.y) < JOYSTICK_RADIUS * 2) {
                 gameState.joystickLeft.active = true;
                 gameState.joystickLeft.touchId = touch.identifier;
                 updateJoystick(gameState.joystickLeft, touchX, touchY);
             }
-            else if (!gameState.joystickRight.active &&
+            else if (!gameState.joystickRight.active && player.hp > 0 &&
                 Math.hypot(touchX - gameState.joystickRight.x, touchY - gameState.joystickRight.y) < JOYSTICK_RADIUS * 2) {
                 gameState.joystickRight.active = true;
                 gameState.joystickRight.touchId = touch.identifier;
@@ -759,7 +756,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     canvas.addEventListener('touchmove', (event) => {
-        if (!gameState.gameStarted) return;
+        if (!gameState.gameStarted || player.hp <= 0) return; // Só mover se vivo
         event.preventDefault();
         const touches = event.changedTouches;
         for (let i = 0; i < touches.length; i++) {
@@ -777,7 +774,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     canvas.addEventListener('touchend', (event) => {
-        if (!gameState.gameStarted) return;
+        if (!gameState.gameStarted || player.hp <= 0) return; // Só processar se vivo
         event.preventDefault();
         const touches = event.changedTouches;
         for (let i = 0; i < touches.length; i++) {
@@ -895,7 +892,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (event.key.length === 1 && gameState.inputName.length < 15) {
                 gameState.inputName += event.key;
             }
-        } else if (gameState.gameStarted) {
+        } else if (gameState.gameStarted && player.hp > 0) { // Só processar teclas se vivo
             const key = event.key.toLowerCase();
             if (key in keys) {
                 keys[key] = true;
@@ -904,6 +901,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.addEventListener('keyup', (event) => {
+        if (player.hp <= 0) return; // Só processar se vivo
         const key = event.key.toLowerCase();
         if (key in keys) keys[key] = false;
     });
@@ -963,7 +961,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log("Game started confirmed by server for:", gameState.playerName);
             }
             const dx = serverPlayer.x - player.x;
-            const dy = serverPlayer.y - player.y;
+            const dy = serverPlayer.x - player.y;
             const distance = Math.hypot(dx, dy);
             if (distance > 50) {
                 player.x += dx * 0.1;
@@ -975,9 +973,10 @@ document.addEventListener('DOMContentLoaded', () => {
             player.hp = serverPlayer.hp;
             player.score = serverPlayer.score;
             console.log(`Player ${player.name} HP updated to: ${player.hp}`);
-            if (previousHp > 0 && player.hp <= 0 && !player.isGhost) {
-                player.isGhost = true;
-                console.log("Jogador morreu e agora é um fantasma");
+            if (previousHp > 0 && player.hp <= 0 && gameState.gameStarted) {
+                resetGameState();
+                socket.emit('leave');
+                console.log("Jogador morreu, voltando à tela inicial");
             }
             if (player.score > 0 && (player.score % 100 === 0 || (player.score - 100 * player.playersEliminated) % 100 === 0)) {
                 const newEliminations = Math.floor(player.score / 100) - player.playersEliminated;
@@ -1001,8 +1000,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log("Restart completed, resuming normal play");
             }
         } else if (!gameState.gameOver && !gameState.isRestarting && gameState.gameStarted && gameState.players.length > 0) {
-            // Não resetar mais ao não encontrar o jogador
-            console.log("Jogador não encontrado na lista do servidor, mantendo como fantasma");
+            resetGameState();
+            socket.emit('leave');
+            console.log("Jogador não encontrado na lista do servidor, voltando à tela inicial");
         }
     });
 
