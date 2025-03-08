@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gameState.boss = bossData;
     });
 
-    const eliminationDisplayTime = 5000;
+    const eliminationDisplayTime = 10000;
     const bulletCooldown = 500;
     const collisionCooldown = 1000;
     let lastShotTime = 0;
@@ -241,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fillStyle = 'gray';
             ctx.fillRect(screenX - 50, screenY - 55, 100, 10);
             ctx.fillStyle = 'red';
-            ctx.fillRect(screenX - 50, screenY - 55, (p.hp / 1000) * 100, 10);
+            ctx.fillRect(screenX - 50, screenY - 55, (p.hp / 500) * 100, 10);
 
             ctx.fillStyle = 'black';
             ctx.font = 'bold 16px Arial';
