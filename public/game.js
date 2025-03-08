@@ -2,12 +2,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     console.log('1. DOMContentLoaded disparado');
 
-    const socket = io('https://battle-royale-backend.onrender.com', {
-        reconnection: true,
-        reconnectionAttempts: 10,
-        reconnectionDelay: 1000,
-        timeout: 20000
-    });
+    const socket = io('https://battle-royale-backend.onrender.com');
     console.log('2. Socket.IO inicializado');
 
     socket.on('connect', () => {
@@ -15,13 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
         player.id = socket.id;
     });
     socket.on('connect_error', (error) => {
-        console.error('Erro ao conectar ao servidor:', error.message);
-    });
-    socket.on('reconnect_attempt', (attempt) => {
-        console.log('Tentativa de reconexão:', attempt);
-    });
-    socket.on('disconnect', () => {
-        console.log('Desconectado do servidor');
+        console.error('Erro ao conectar ao servidor:', error);
     });
 
     const canvas = document.getElementById('gameCanvas');
@@ -66,14 +55,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const player = {
         id: null,
         name: gameState.playerName,
-        x: 0,
-        y: 0,
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
         velocityX: 0,
         velocityY: 0,
         angle: 0,
         isShooting: false,
         score: 0,
-        hp: 0,
+        hp: 200,
         playersEliminated: 0,
         yellowPentagonsEliminated: 0,
         purplePentagonsEliminated: 0
@@ -142,13 +131,13 @@ document.addEventListener('DOMContentLoaded', () => {
         gameState.isRestarting = false;
         gameState.gameStarted = false;
         gameState.isInputFocused = false;
-        player.hp = 0; // Será atualizado pelo servidor
+        player.hp = 200;
         player.score = 0;
         player.playersEliminated = 0;
         player.yellowPentagonsEliminated = 0;
         player.purplePentagonsEliminated = 0;
-        player.x = 0;
-        player.y = 0;
+        player.x = canvas.width / 2;
+        player.y = canvas.height / 2;
         player.velocityX = 0;
         player.velocityY = 0;
         keys.w = false;
@@ -174,6 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const skinUrl = activePlayerSkins.get(p.id);
+        console.log(`Desenhando jogador ${p.name} (ID: ${p.id}) com skin: ${skinUrl || 'Nenhuma'}`);
         if (skinUrl && skinImages.has(skinUrl) && skinImages.get(skinUrl) && skinImages.get(skinUrl).complete && skinImages.get(skinUrl).naturalWidth > 0) {
             ctx.save();
             ctx.beginPath();
@@ -440,7 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function movePlayer(deltaTime) {
-        if (player.hp <= 0 || !gameState.gameStarted) return;
+        if (player.hp <= 0) return;
 
         let accelX = 0;
         let accelY = 0;
@@ -574,9 +564,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawPlayers() {
-        gameState.players.forEach(p => {
-            drawPlayer(p);
-        });
+        gameState.players.forEach(p => drawPlayer(p));
     }
 
     function updatePlayer() {
@@ -614,7 +602,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 document.body.style.cursor = 'default';
             }
-        } else if (!gameState.joystickRight.active && player.hp > 0) {
+        } else if (!gameState.joystickRight.active) {
             const worldMouseX = mouseX + gameState.cameraX;
             const worldMouseY = mouseY + gameState.cameraY;
             player.angle = Math.atan2(worldMouseY - player.y, worldMouseX - player.x);
@@ -623,6 +611,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     canvas.addEventListener('mousedown', (event) => {
         if (event.button === 0 && player.hp > 0 && !gameState.joystickRight.active) {
+            console.log('Mouse down at:', Date.now());
             player.isShooting = true;
         }
     });
@@ -634,17 +623,21 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     canvas.addEventListener('touchstart', (event) => {
+        console.log('Touchstart detectado');
         if (!gameState.gameStarted) {
             const rect = canvas.getBoundingClientRect();
             const touchX = event.touches[0].clientX - rect.left;
             const touchY = event.touches[0].clientY - rect.top;
 
+            // Verifica se o toque foi no input
             if (touchX >= canvas.width / 2 - 120 && touchX <= canvas.width / 2 + 120 &&
                 touchY >= canvas.height / 2 - 20 && touchY <= canvas.height / 2 + 20) {
                 gameState.isInputFocused = true;
-                document.getElementById('hiddenInput').focus();
-            } else if (touchX >= canvas.width / 2 - 120 && touchX <= canvas.width / 2 + 120 &&
-                       touchY >= canvas.height / 2 + 50 && touchY <= canvas.height / 2 + 90) {
+                document.getElementById('hiddenInput').focus(); // Foca no input oculto
+            }
+            // Verifica se o toque foi no botão "Jogar"
+            else if (touchX >= canvas.width / 2 - 120 && touchX <= canvas.width / 2 + 120 &&
+                     touchY >= canvas.height / 2 + 50 && touchY <= canvas.height / 2 + 90) {
                 startGame();
             }
             return;
@@ -655,13 +648,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const touch = touches[i];
             const touchX = touch.clientX - canvas.getBoundingClientRect().left;
             const touchY = touch.clientY - canvas.getBoundingClientRect().top;
+            console.log('Touch em:', touchX, touchY);
 
             if (!gameState.joystickLeft.active &&
                 Math.hypot(touchX - gameState.joystickLeft.x, touchY - gameState.joystickLeft.y) < JOYSTICK_RADIUS * 2) {
                 gameState.joystickLeft.active = true;
                 gameState.joystickLeft.touchId = touch.identifier;
                 updateJoystick(gameState.joystickLeft, touchX, touchY);
-            } else if (!gameState.joystickRight.active &&
+            }
+            else if (!gameState.joystickRight.active &&
                 Math.hypot(touchX - gameState.joystickRight.x, touchY - gameState.joystickRight.y) < JOYSTICK_RADIUS * 2) {
                 gameState.joystickRight.active = true;
                 gameState.joystickRight.touchId = touch.identifier;
@@ -669,7 +664,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 player.isShooting = true;
             }
         }
-    }, { passive: true });
+    });
 
     canvas.addEventListener('touchmove', (event) => {
         if (!gameState.gameStarted) return;
@@ -687,7 +682,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateJoystick(gameState.joystickRight, touchX, touchY);
             }
         }
-    }, { passive: true });
+    });
 
     canvas.addEventListener('touchend', (event) => {
         if (!gameState.gameStarted) return;
@@ -727,6 +722,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    gameState.newName = gameState.playerName;
+
+    // Função para iniciar o jogo
     function startGame() {
         console.log('Botão "Jogar" acionado');
         resetGameState();
@@ -734,9 +732,9 @@ document.addEventListener('DOMContentLoaded', () => {
         player.name = gameState.playerName;
         loadSkin(gameState.playerName);
         socket.emit('join', { name: gameState.playerName, width: canvas.width, height: canvas.height });
+        console.log("Join emitido com nome:", gameState.playerName);
         gameState.isInputFocused = false;
-        document.getElementById('hiddenInput').blur();
-        gameState.gameStarted = true;
+        document.getElementById('hiddenInput').blur(); // Remove o foco do input oculto
     }
 
     canvas.addEventListener('click', (event) => {
@@ -744,15 +742,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const clickX = event.clientX - rect.left;
         const clickY = event.clientY - rect.top;
 
+        console.log('Clique registrado em:', { clickX, clickY, canvasWidth: canvas.width, canvasHeight: canvas.height });
+
         if (!gameState.gameStarted) {
+            console.log('Verificando clique na tela inicial...');
             if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
                 clickY >= canvas.height / 2 - 20 && clickY <= canvas.height / 2 + 20) {
                 gameState.isInputFocused = true;
-                document.getElementById('hiddenInput').focus();
+                document.getElementById('hiddenInput').focus(); // Foca no input oculto
             } else if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
                        clickY >= canvas.height / 2 + 50 && clickY <= canvas.height / 2 + 90) {
                 startGame();
             } else {
+                console.log('Clique fora do botão "Jogar" na tela inicial');
                 gameState.isInputFocused = false;
                 const socialLinks = [
                     { name: 'YOUTUBE', url: 'https://www.youtube.com/@GAMEPLAYS-h7t' },
@@ -776,6 +778,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Criar um input oculto para capturar o teclado no mobile
     const hiddenInput = document.createElement('input');
     hiddenInput.id = 'hiddenInput';
     hiddenInput.type = 'text';
@@ -785,10 +788,12 @@ document.addEventListener('DOMContentLoaded', () => {
     hiddenInput.style.height = '1px';
     document.body.appendChild(hiddenInput);
 
+    // Sincronizar o input oculto com gameState.inputName
     hiddenInput.addEventListener('input', (event) => {
-        gameState.inputName = event.target.value.slice(0, 15);
+        gameState.inputName = event.target.value.slice(0, 15); // Limite de 15 caracteres
     });
 
+    // Capturar "Enter" para iniciar o jogo
     hiddenInput.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' && !gameState.gameStarted) {
             startGame();
@@ -818,54 +823,95 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastTime = performance.now();
 
     function gameLoop(timestamp) {
-        const deltaTime = Math.min((timestamp - lastTime) / 1000, 0.1);
-        lastTime = timestamp;
+        console.log('9. gameLoop iniciado, timestamp:', timestamp);
+        try {
+            const deltaTime = Math.min((timestamp - lastTime) / 1000, 0.1);
+            lastTime = timestamp;
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+            console.log('10. Canvas limpo');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        if (gameState.gameStarted) {
-            updateCamera();
-            drawBullets();
-            gameState.items.forEach(item => drawItem(item));
-            gameState.pentagons.forEach(p => drawPentagon(p));
-            drawPlayers();
-            drawScoreboard();
-            drawTopScores();
-            drawLastElimination();
-            drawJoysticks();
+            if (gameState.gameStarted) {
+                console.log('11. Jogo iniciado, atualizando e desenhando');
+                updateCamera();
+                drawBullets();
+                gameState.items.forEach(item => drawItem(item));
+                gameState.pentagons.forEach(p => drawPentagon(p));
+                drawPlayers();
+                drawScoreboard();
+                drawTopScores();
+                drawLastElimination();
+                drawJoysticks();
 
-            movePlayer(deltaTime);
-            checkPlayerPentagonCollisions();
-            checkPlayerItemCollisions();
-            if (player.isShooting) shoot();
-            updatePlayer();
-        } else {
-            gameState.cameraX = 0;
-            gameState.cameraY = 0;
-            drawStartScreen();
+                movePlayer(deltaTime);
+                checkPlayerPentagonCollisions();
+                checkPlayerItemCollisions();
+                if (player.isShooting) shoot();
+                updatePlayer();
+            } else {
+                console.log('11. Jogo não iniciado, desenhando tela inicial');
+                gameState.cameraX = 0;
+                gameState.cameraY = 0;
+                drawStartScreen();
+            }
+        } catch (error) {
+            console.error('Erro no gameLoop:', error.stack);
         }
-
         requestAnimationFrame(gameLoop);
     }
 
+    console.log('8. Iniciando gameLoop');
     requestAnimationFrame(gameLoop);
 
     socket.on('players', (updatedPlayers) => {
+        console.log('Players recebidos:', updatedPlayers);
         gameState.players = updatedPlayers || [];
         const serverPlayer = gameState.players.find(p => p.id === player.id);
         if (serverPlayer) {
+            if (!gameState.gameStarted) {
+                gameState.gameStarted = true;
+                console.log("Game started confirmed by server for:", gameState.playerName);
+            }
+            const dx = serverPlayer.x - player.x;
+            const dy = serverPlayer.y - player.y;
+            const distance = Math.hypot(dx, dy);
+            if (distance > 50) {
+                player.x += dx * 0.1;
+                player.y += dy * 0.1;
+                player.x = Math.max(20, Math.min(ARENA_WIDTH - 20, player.x));
+                player.y = Math.max(20, Math.min(ARENA_HEIGHT - 20, player.y));
+            }
             const previousHp = player.hp;
             player.hp = serverPlayer.hp;
             player.score = serverPlayer.score;
-            player.x = serverPlayer.x;
-            player.y = serverPlayer.y;
-            player.angle = serverPlayer.angle;
+            console.log(`Player ${player.name} HP updated to: ${player.hp}`);
             if (previousHp > 0 && player.hp <= 0 && gameState.gameStarted) {
                 resetGameState();
                 socket.emit('leave');
                 console.log("Jogador morreu, voltando à tela inicial");
             }
-        } else if (gameState.gameStarted && !gameState.gameOver && !gameState.isRestarting && gameState.players.length > 0) {
+            if (player.score > 0 && (player.score % 100 === 0 || (player.score - 100 * player.playersEliminated) % 100 === 0)) {
+                const newEliminations = Math.floor(player.score / 100) - player.playersEliminated;
+                if (newEliminations > 0) {
+                    player.playersEliminated += newEliminations;
+                    console.log(`Player ${player.name} eliminated ${newEliminations} player(s)`);
+                }
+            }
+            const skinFile = `${gameState.playerName.toLowerCase()}.png`;
+            fetch(`/skins/${skinFile}`)
+                .then(response => {
+                    if (response.ok) {
+                        loadSkin(`/skins/${skinFile}`);
+                    } else {
+                        console.warn(`Nenhuma skin encontrada para ${gameState.playerName}`);
+                    }
+                })
+                .catch(err => console.error(`Erro ao verificar skin para ${gameState.playerName}:`, err));
+            if (gameState.isRestarting && serverPlayer.hp > 0) {
+                gameState.isRestarting = false;
+                console.log("Restart completed, resuming normal play");
+            }
+        } else if (!gameState.gameOver && !gameState.isRestarting && gameState.gameStarted && gameState.players.length > 0) {
             resetGameState();
             socket.emit('leave');
             console.log("Jogador não encontrado na lista do servidor, voltando à tela inicial");
@@ -873,18 +919,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     socket.on('pentagons', (updatedPentagons) => {
+        console.log('Pentagons recebidos:', updatedPentagons);
         gameState.pentagons = updatedPentagons || [];
     });
 
     socket.on('items', (updatedItems) => {
+        console.log('Items recebidos:', updatedItems);
         gameState.items = updatedItems || [];
     });
 
     socket.on('shoot', (bullet) => {
+        console.log('Shoot received:', bullet);
         gameState.bullets.push(bullet);
     });
 
     socket.on('bullets', (updatedBullets) => {
+        console.log('Bullets recebidos:', updatedBullets);
         gameState.bullets = updatedBullets || [];
     });
 
@@ -895,10 +945,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 victim: data.victimName,
                 timestamp: Date.now()
             };
+            console.log(`Elimination received: ${data.killerName} x ${data.victimName}`);
         }
     });
 
     socket.on('topScores', (updatedTopScores) => {
+        console.log('Top scores recebidos:', updatedTopScores);
         gameState.topScores = updatedTopScores || [];
     });
 
@@ -908,7 +960,5 @@ document.addEventListener('DOMContentLoaded', () => {
         player.hp = playerData.hp;
         player.x = playerData.x;
         player.y = playerData.y;
-        player.score = playerData.score;
-        player.angle = playerData.angle;
     });
 });
