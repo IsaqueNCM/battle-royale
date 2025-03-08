@@ -114,7 +114,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     socket.on('boss', (bossData) => {
-        gameState.boss = bossData;
+        gameState.boss = bossData; // Pode ser null ou um boss válido
+        console.log('Boss atualizado:', gameState.boss); // Para debug
     });
 
     const eliminationDisplayTime = 10000;
@@ -308,30 +309,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawBossArrow() {
-        if (gameState.boss && gameState.gameStarted) {
-            const bossX = gameState.boss.x - gameState.cameraX;
+        if (gameState.boss && gameState.boss.hp > 0 && gameState.gameStarted) {
+            const bossX = gameState.boss.x - gameState.cameraX; // Posição do boss na tela
             const bossY = gameState.boss.y - gameState.cameraY;
+            const playerScreenX = player.x - gameState.cameraX; // Posição do jogador na tela
+            const playerScreenY = player.y - gameState.cameraY;
 
+            // Verifica se o boss está fora da tela visível
             if (bossX < 0 || bossX > canvas.width || bossY < 0 || bossY > canvas.height) {
-                const playerScreenX = player.x - gameState.cameraX;
-                const playerScreenY = player.y - gameState.cameraY;
-                const angle = Math.atan2(bossY - playerScreenY, bossX - playerScreenX);
+                const angle = Math.atan2(bossY - playerScreenY, bossX - playerScreenX); // Ângulo do jogador ao boss
 
                 const arrowSize = 20;
                 const margin = 50;
+                // Posiciona a seta na borda da tela na direção do boss
                 let arrowX = playerScreenX + Math.cos(angle) * (canvas.width / 2 - margin);
                 let arrowY = playerScreenY + Math.sin(angle) * (canvas.height / 2 - margin);
 
+                // Limita a posição da seta dentro da tela
                 arrowX = Math.max(margin, Math.min(canvas.width - margin, arrowX));
                 arrowY = Math.max(margin, Math.min(canvas.height - margin, arrowY));
 
                 ctx.save();
                 ctx.translate(arrowX, arrowY);
-                ctx.rotate(angle);
+                ctx.rotate(angle); // Roda a seta para apontar na direção correta
                 ctx.beginPath();
-                ctx.moveTo(0, -arrowSize);
-                ctx.lineTo(-arrowSize / 2, arrowSize / 2);
-                ctx.lineTo(arrowSize / 2, arrowSize / 2);
+                ctx.moveTo(arrowSize, 0);         // Ponta da seta
+                ctx.lineTo(-arrowSize / 2, -arrowSize / 2); // Base esquerda
+                ctx.lineTo(-arrowSize / 2, arrowSize / 2);  // Base direita
                 ctx.closePath();
                 ctx.fillStyle = gameState.boss.behavior === 'chase' ? 'purple' : 'orange';
                 ctx.fill();
@@ -926,7 +930,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 drawBullets();
                 gameState.items.forEach(item => drawItem(item));
                 gameState.pentagons.forEach(p => drawPentagon(p));
-                if (gameState.boss) drawPentagon(gameState.boss);
+                if (gameState.boss && gameState.boss.hp > 0) drawPentagon(gameState.boss); // Só desenha se o boss estiver vivo
                 drawPlayers();
                 drawScoreboard();
                 drawTopScores();
@@ -964,7 +968,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log("Game started confirmed by server for:", gameState.playerName);
             }
             const dx = serverPlayer.x - player.x;
-            const dy = serverPlayer.y - player.y; // Corrigido de serverPlayer.x para serverPlayer.y
+            const dy = serverPlayer.y - player.y;
             const distance = Math.hypot(dx, dy);
             if (distance > 50) {
                 player.x += dx * 0.1;
