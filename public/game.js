@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pentagons: [],
         items: [],
         bullets: [],
+        boss: null, // Adicionado para armazenar o chefão
         gameOver: false,
         isRestarting: false,
         gameStarted: false,
@@ -110,6 +111,11 @@ document.addEventListener('DOMContentLoaded', () => {
             activePlayerSkins.set(playerId, skinUrl);
             if (skinUrl) loadSkin(skinUrl);
         });
+    });
+
+    // Receber dados do chefão do servidor
+    socket.on('boss', (bossData) => {
+        gameState.boss = bossData;
     });
 
     const eliminationDisplayTime = 5000;
@@ -202,7 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawPentagon(p) {
-        const radius = p.isSmall ? 10 : 20;
+        const radius = p.isSmall ? 10 : (p.isBoss ? 40 : 20); // Chefão tem dobro do tamanho
         const sides = 5;
         const angleStep = (2 * Math.PI) / sides;
 
@@ -229,8 +235,22 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillStyle = p.behavior === 'chase' ? 'purple' : 'orange';
         ctx.fill();
         ctx.strokeStyle = 'black';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = p.isBoss ? 4 : 2; // Borda mais grossa para chefão
         ctx.stroke();
+
+        if (p.isBoss) {
+            // Barra de vida do chefão
+            ctx.fillStyle = 'gray';
+            ctx.fillRect(screenX - 50, screenY - 55, 100, 10);
+            ctx.fillStyle = 'red';
+            ctx.fillRect(screenX - 50, screenY - 55, (p.hp / 1000) * 100, 10);
+
+            // Nome do chefão em negrito
+            ctx.fillStyle = 'black';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(p.name, screenX, screenY - 65);
+        }
     }
 
     function drawItem(item) {
@@ -265,14 +285,67 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (screenX >= -5 && screenX <= canvas.width + 5 && 
                     screenY >= -5 && screenY <= canvas.height + 5) {
-                    ctx.beginPath();
-                    ctx.arc(screenX, screenY, 5, 0, Math.PI * 2);
-                    ctx.fillStyle = 'green';
-                    ctx.fill();
-                    ctx.closePath();
+                    if (bullet.shooterId && bullet.shooterId.startsWith('boss_')) {
+                        // Desenhar triângulo perseguidor vermelho
+                        const size = 10;
+                        ctx.save();
+                        ctx.translate(screenX, screenY);
+                        ctx.rotate(bullet.angle + Math.PI / 2);
+                        ctx.beginPath();
+                        ctx.moveTo(0, -size);
+                        ctx.lineTo(-size / 2, size / 2);
+                        ctx.lineTo(size / 2, size / 2);
+                        ctx.closePath();
+                        ctx.fillStyle = 'red';
+                        ctx.fill();
+                        ctx.restore();
+                    } else {
+                        // Desenhar bala normal
+                        ctx.beginPath();
+                        ctx.arc(screenX, screenY, 5, 0, Math.PI * 2);
+                        ctx.fillStyle = 'green';
+                        ctx.fill();
+                        ctx.closePath();
+                    }
                 }
             }
         });
+    }
+
+    // Função para desenhar a seta indicadora do chefão
+    function drawBossArrow() {
+        if (gameState.boss && gameState.gameStarted) {
+            const bossX = gameState.boss.x - gameState.cameraX;
+            const bossY = gameState.boss.y - gameState.cameraY;
+
+            // Desenhar seta apenas se o chefão estiver fora da tela
+            if (bossX < 0 || bossX > canvas.width || bossY < 0 || bossY > canvas.height) {
+                const playerScreenX = player.x - gameState.cameraX;
+                const playerScreenY = player.y - gameState.cameraY;
+                const angle = Math.atan2(bossY - playerScreenY, bossX - playerScreenX);
+
+                const arrowSize = 20;
+                const margin = 50;
+                let arrowX = playerScreenX + Math.cos(angle) * (canvas.width / 2 - margin);
+                let arrowY = playerScreenY + Math.sin(angle) * (canvas.height / 2 - margin);
+
+                // Garantir que a seta fique dentro da tela
+                arrowX = Math.max(margin, Math.min(canvas.width - margin, arrowX));
+                arrowY = Math.max(margin, Math.min(canvas.height - margin, arrowY));
+
+                ctx.save();
+                ctx.translate(arrowX, arrowY);
+                ctx.rotate(angle);
+                ctx.beginPath();
+                ctx.moveTo(0, -arrowSize);
+                ctx.lineTo(-arrowSize / 2, arrowSize / 2);
+                ctx.lineTo(arrowSize / 2, arrowSize / 2);
+                ctx.closePath();
+                ctx.fillStyle = gameState.boss.behavior === 'chase' ? 'purple' : 'orange';
+                ctx.fill();
+                ctx.restore();
+            }
+        }
     }
 
     function drawJoysticks() {
@@ -424,8 +497,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const dx = obj1.x - obj2.x;
         const dy = obj1.y - obj2.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        const radius1 = obj1.isSmall ? 10 : (obj1.shooterId ? 5 : (obj1.type === 'heal' ? 5 : 20));
-        const radius2 = obj2.isSmall ? 10 : (obj2.shooterId ? 5 : (obj2.type === 'heal' ? 5 : 20));
+        const radius1 = obj1.isSmall ? 10 : (obj1.shooterId ? 5 : (obj1.type === 'heal' ? 5 : (obj1.isBoss ? 40 : 20)));
+        const radius2 = obj2.isSmall ? 10 : (obj2.shooterId ? 5 : (obj2.type === 'heal' ? 5 : (obj2.isBoss ? 40 : 20)));
         return distance < radius1 + radius2;
     }
 
@@ -488,7 +561,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const dx = player.x - pentagon.x;
                 const dy = player.y - pentagon.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
-                const minDistance = (pentagon.isSmall ? 10 : 20) + 20;
+                const minDistance = (pentagon.isSmall ? 10 : (pentagon.isBoss ? 40 : 20)) + 20;
 
                 if (distance > 0) {
                     const overlap = minDistance - distance;
@@ -520,6 +593,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
+
+        // Verificar colisão com o chefão
+        if (gameState.boss && checkCollision(player, gameState.boss)) {
+            const dx = player.x - gameState.boss.x;
+            const dy = player.y - gameState.boss.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const minDistance = 40 + 20; // Raio do chefão + raio do jogador
+
+            if (distance > 0) {
+                const overlap = minDistance - distance;
+                const repulsionX = (dx / distance) * (overlap / 2 + 5);
+                const repulsionY = (dy / distance) * (overlap / 2 + 5);
+
+                player.x += repulsionX;
+                player.y += repulsionY;
+                player.x = Math.max(20, Math.min(ARENA_WIDTH - 20, player.x));
+                player.y = Math.max(20, Math.min(ARENA_HEIGHT - 20, player.y));
+
+                socket.emit('playerDamaged', {
+                    playerId: player.id,
+                    damage: 5
+                });
+
+                lastCollisionTime = currentTime;
+            }
+        }
     }
 
     function checkPlayerItemCollisions() {
@@ -629,13 +728,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const touchX = event.touches[0].clientX - rect.left;
             const touchY = event.touches[0].clientY - rect.top;
 
-            // Verifica se o toque foi no input
             if (touchX >= canvas.width / 2 - 120 && touchX <= canvas.width / 2 + 120 &&
                 touchY >= canvas.height / 2 - 20 && touchY <= canvas.height / 2 + 20) {
                 gameState.isInputFocused = true;
-                document.getElementById('hiddenInput').focus(); // Foca no input oculto
+                document.getElementById('hiddenInput').focus();
             }
-            // Verifica se o toque foi no botão "Jogar"
             else if (touchX >= canvas.width / 2 - 120 && touchX <= canvas.width / 2 + 120 &&
                      touchY >= canvas.height / 2 + 50 && touchY <= canvas.height / 2 + 90) {
                 startGame();
@@ -724,7 +821,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     gameState.newName = gameState.playerName;
 
-    // Função para iniciar o jogo
     function startGame() {
         console.log('Botão "Jogar" acionado');
         resetGameState();
@@ -734,7 +830,7 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.emit('join', { name: gameState.playerName, width: canvas.width, height: canvas.height });
         console.log("Join emitido com nome:", gameState.playerName);
         gameState.isInputFocused = false;
-        document.getElementById('hiddenInput').blur(); // Remove o foco do input oculto
+        document.getElementById('hiddenInput').blur();
     }
 
     canvas.addEventListener('click', (event) => {
@@ -749,7 +845,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
                 clickY >= canvas.height / 2 - 20 && clickY <= canvas.height / 2 + 20) {
                 gameState.isInputFocused = true;
-                document.getElementById('hiddenInput').focus(); // Foca no input oculto
+                document.getElementById('hiddenInput').focus();
             } else if (clickX >= canvas.width / 2 - 120 && clickX <= canvas.width / 2 + 120 &&
                        clickY >= canvas.height / 2 + 50 && clickY <= canvas.height / 2 + 90) {
                 startGame();
@@ -778,7 +874,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Criar um input oculto para capturar o teclado no mobile
     const hiddenInput = document.createElement('input');
     hiddenInput.id = 'hiddenInput';
     hiddenInput.type = 'text';
@@ -788,12 +883,10 @@ document.addEventListener('DOMContentLoaded', () => {
     hiddenInput.style.height = '1px';
     document.body.appendChild(hiddenInput);
 
-    // Sincronizar o input oculto com gameState.inputName
     hiddenInput.addEventListener('input', (event) => {
-        gameState.inputName = event.target.value.slice(0, 15); // Limite de 15 caracteres
+        gameState.inputName = event.target.value.slice(0, 15);
     });
 
-    // Capturar "Enter" para iniciar o jogo
     hiddenInput.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' && !gameState.gameStarted) {
             startGame();
@@ -837,11 +930,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 drawBullets();
                 gameState.items.forEach(item => drawItem(item));
                 gameState.pentagons.forEach(p => drawPentagon(p));
+                if (gameState.boss) drawPentagon(gameState.boss); // Desenhar o chefão
                 drawPlayers();
                 drawScoreboard();
                 drawTopScores();
                 drawLastElimination();
                 drawJoysticks();
+                drawBossArrow(); // Desenhar a seta indicadora do chefão
 
                 movePlayer(deltaTime);
                 checkPlayerPentagonCollisions();
