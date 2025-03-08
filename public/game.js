@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pentagons: [],
         items: [],
         bullets: [],
-        boss: null, // Adicionado para armazenar o chefão
+        boss: null,
         gameOver: false,
         isRestarting: false,
         gameStarted: false,
@@ -66,7 +66,8 @@ document.addEventListener('DOMContentLoaded', () => {
         hp: 200,
         playersEliminated: 0,
         yellowPentagonsEliminated: 0,
-        purplePentagonsEliminated: 0
+        purplePentagonsEliminated: 0,
+        isGhost: false // Novo estado para indicar "fantasma"
     };
 
     function resizeCanvas() {
@@ -113,7 +114,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Receber dados do chefão do servidor
     socket.on('boss', (bossData) => {
         gameState.boss = bossData;
     });
@@ -146,6 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
         player.y = canvas.height / 2;
         player.velocityX = 0;
         player.velocityY = 0;
+        player.isGhost = false;
         keys.w = false;
         keys.a = false;
         keys.s = false;
@@ -157,6 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawPlayer(p) {
+        if (p.hp <= 0) return; // Não desenhar jogadores mortos (fantasmas)
         const radius = 20;
         const diameter = radius * 2;
 
@@ -208,7 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawPentagon(p) {
-        const radius = p.isSmall ? 10 : (p.isBoss ? 40 : 20); // Chefão tem dobro do tamanho
+        const radius = p.isSmall ? 10 : (p.isBoss ? 40 : 20);
         const sides = 5;
         const angleStep = (2 * Math.PI) / sides;
 
@@ -235,17 +237,15 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillStyle = p.behavior === 'chase' ? 'purple' : 'orange';
         ctx.fill();
         ctx.strokeStyle = 'black';
-        ctx.lineWidth = p.isBoss ? 4 : 2; // Borda mais grossa para chefão
+        ctx.lineWidth = p.isBoss ? 4 : 2;
         ctx.stroke();
 
         if (p.isBoss) {
-            // Barra de vida do chefão
             ctx.fillStyle = 'gray';
             ctx.fillRect(screenX - 50, screenY - 55, 100, 10);
             ctx.fillStyle = 'red';
             ctx.fillRect(screenX - 50, screenY - 55, (p.hp / 1000) * 100, 10);
 
-            // Nome do chefão em negrito
             ctx.fillStyle = 'black';
             ctx.font = 'bold 16px Arial';
             ctx.textAlign = 'center';
@@ -286,8 +286,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (screenX >= -5 && screenX <= canvas.width + 5 && 
                     screenY >= -5 && screenY <= canvas.height + 5) {
                     if (bullet.shooterId && bullet.shooterId.startsWith('boss_')) {
-                        // Desenhar triângulo perseguidor vermelho
-                        const size = 10;
+                        // Aumentar tamanho das balas perseguidoras
+                        const size = 15; // Aumentado de 10 para 15
                         ctx.save();
                         ctx.translate(screenX, screenY);
                         ctx.rotate(bullet.angle + Math.PI / 2);
@@ -300,7 +300,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         ctx.fill();
                         ctx.restore();
                     } else {
-                        // Desenhar bala normal
                         ctx.beginPath();
                         ctx.arc(screenX, screenY, 5, 0, Math.PI * 2);
                         ctx.fillStyle = 'green';
@@ -312,13 +311,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Função para desenhar a seta indicadora do chefão
     function drawBossArrow() {
         if (gameState.boss && gameState.gameStarted) {
             const bossX = gameState.boss.x - gameState.cameraX;
             const bossY = gameState.boss.y - gameState.cameraY;
 
-            // Desenhar seta apenas se o chefão estiver fora da tela
             if (bossX < 0 || bossX > canvas.width || bossY < 0 || bossY > canvas.height) {
                 const playerScreenX = player.x - gameState.cameraX;
                 const playerScreenY = player.y - gameState.cameraY;
@@ -329,7 +326,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 let arrowX = playerScreenX + Math.cos(angle) * (canvas.width / 2 - margin);
                 let arrowY = playerScreenY + Math.sin(angle) * (canvas.height / 2 - margin);
 
-                // Garantir que a seta fique dentro da tela
                 arrowX = Math.max(margin, Math.min(canvas.width - margin, arrowX));
                 arrowY = Math.max(margin, Math.min(canvas.height - margin, arrowY));
 
@@ -497,14 +493,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const dx = obj1.x - obj2.x;
         const dy = obj1.y - obj2.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        const radius1 = obj1.isSmall ? 10 : (obj1.shooterId ? 5 : (obj1.type === 'heal' ? 5 : (obj1.isBoss ? 40 : 20)));
-        const radius2 = obj2.isSmall ? 10 : (obj2.shooterId ? 5 : (obj2.type === 'heal' ? 5 : (obj2.isBoss ? 40 : 20)));
+        const radius1 = obj1.isSmall ? 10 : (obj1.shooterId && obj1.shooterId.startsWith('boss_') ? 15 : (obj1.shooterId ? 5 : (obj1.type === 'heal' ? 5 : (obj1.isBoss ? 40 : 20))));
+        const radius2 = obj2.isSmall ? 10 : (obj2.shooterId && obj2.shooterId.startsWith('boss_') ? 15 : (obj2.shooterId ? 5 : (obj2.type === 'heal' ? 5 : (obj2.isBoss ? 40 : 20))));
         return distance < radius1 + radius2;
     }
 
     function movePlayer(deltaTime) {
-        if (player.hp <= 0) return;
-
+        // Permitir movimento mesmo como fantasma
         let accelX = 0;
         let accelY = 0;
 
@@ -594,12 +589,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Verificar colisão com o chefão
         if (gameState.boss && checkCollision(player, gameState.boss)) {
             const dx = player.x - gameState.boss.x;
             const dy = player.y - gameState.boss.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
-            const minDistance = 40 + 20; // Raio do chefão + raio do jogador
+            const minDistance = 40 + 20;
 
             if (distance > 0) {
                 const overlap = minDistance - distance;
@@ -622,6 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function checkPlayerItemCollisions() {
+        if (player.hp <= 0) return; // Fantasmas não coletam itens
         gameState.items.forEach(item => {
             const dx = player.x - item.x;
             const dy = player.y - item.y;
@@ -646,7 +641,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function shoot() {
         const currentTime = Date.now();
-        if (currentTime - lastShotTime > bulletCooldown && player.hp > 0) {
+        if (currentTime - lastShotTime > bulletCooldown) { // Removido player.hp > 0 para permitir disparos como fantasma
             lastShotTime = currentTime;
 
             const weaponLength = 30;
@@ -668,7 +663,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updatePlayer() {
         const now = Date.now();
-        if (player.hp > 0 && player.id && now - lastMoveUpdate >= moveUpdateInterval) {
+        if (player.id && now - lastMoveUpdate >= moveUpdateInterval) {
             if (gameState.joystickRight.active) {
                 const dx = gameState.joystickRight.thumbX - gameState.joystickRight.x;
                 const dy = gameState.joystickRight.thumbY - gameState.joystickRight.y;
@@ -680,7 +675,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateCamera() {
-        if (player.hp > 0 && gameState.gameStarted) {
+        if (gameState.gameStarted) { // Sempre atualizar câmera, mesmo como fantasma
             gameState.cameraX = player.x - canvas.width / 2;
             gameState.cameraY = player.y - canvas.height / 2;
 
@@ -709,7 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     canvas.addEventListener('mousedown', (event) => {
-        if (event.button === 0 && player.hp > 0 && !gameState.joystickRight.active) {
+        if (event.button === 0 && !gameState.joystickRight.active) {
             console.log('Mouse down at:', Date.now());
             player.isShooting = true;
         }
@@ -930,13 +925,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 drawBullets();
                 gameState.items.forEach(item => drawItem(item));
                 gameState.pentagons.forEach(p => drawPentagon(p));
-                if (gameState.boss) drawPentagon(gameState.boss); // Desenhar o chefão
+                if (gameState.boss) drawPentagon(gameState.boss);
                 drawPlayers();
                 drawScoreboard();
                 drawTopScores();
                 drawLastElimination();
                 drawJoysticks();
-                drawBossArrow(); // Desenhar a seta indicadora do chefão
+                drawBossArrow();
 
                 movePlayer(deltaTime);
                 checkPlayerPentagonCollisions();
@@ -980,10 +975,9 @@ document.addEventListener('DOMContentLoaded', () => {
             player.hp = serverPlayer.hp;
             player.score = serverPlayer.score;
             console.log(`Player ${player.name} HP updated to: ${player.hp}`);
-            if (previousHp > 0 && player.hp <= 0 && gameState.gameStarted) {
-                resetGameState();
-                socket.emit('leave');
-                console.log("Jogador morreu, voltando à tela inicial");
+            if (previousHp > 0 && player.hp <= 0 && !player.isGhost) {
+                player.isGhost = true;
+                console.log("Jogador morreu e agora é um fantasma");
             }
             if (player.score > 0 && (player.score % 100 === 0 || (player.score - 100 * player.playersEliminated) % 100 === 0)) {
                 const newEliminations = Math.floor(player.score / 100) - player.playersEliminated;
@@ -1007,9 +1001,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log("Restart completed, resuming normal play");
             }
         } else if (!gameState.gameOver && !gameState.isRestarting && gameState.gameStarted && gameState.players.length > 0) {
-            resetGameState();
-            socket.emit('leave');
-            console.log("Jogador não encontrado na lista do servidor, voltando à tela inicial");
+            // Não resetar mais ao não encontrar o jogador
+            console.log("Jogador não encontrado na lista do servidor, mantendo como fantasma");
         }
     });
 
