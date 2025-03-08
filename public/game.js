@@ -241,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fillStyle = 'gray';
             ctx.fillRect(screenX - 50, screenY - 55, 100, 10);
             ctx.fillStyle = 'red';
-            ctx.fillRect(screenX - 50, screenY - 55, (p.hp / 500) * 100, 10);
+            ctx.fillRect(screenX - 50, screenY - 55, (p.hp / 100) * 100, 10);
 
             ctx.fillStyle = 'black';
             ctx.font = 'bold 16px Arial';
