@@ -1,4 +1,4 @@
-// Atualização para forçar deploy - 05/03/2025
+// Atualização para forçar deploy - 08/03/2025
 document.addEventListener('DOMContentLoaded', () => {
     console.log('1. DOMContentLoaded disparado');
 
@@ -431,6 +431,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillStyle = 'black';
         ctx.fillText('Um jogo produzido por Isaque do Nascimento', canvas.width / 2, canvas.height / 2 - 100);
 
+        // Campo de entrada do nome
         ctx.fillStyle = 'white';
         ctx.strokeStyle = gameState.isInputFocused ? `rgba(0, 0, 255, ${Math.sin(Date.now() / 200) * 0.5 + 0.5})` : 'blue';
         ctx.fillRect(canvas.width / 2 - 120, canvas.height / 2 - 20, 240, 40);
@@ -454,14 +455,16 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.stroke();
         }
 
+        // Botão "Jogar"
         ctx.fillStyle = 'rgba(0, 200, 0, 0.9)';
         ctx.strokeStyle = 'darkgreen';
         ctx.fillRect(canvas.width / 2 - 120, canvas.height / 2 + 50, 240, 40);
-        ctx.strokeRect(canvas.width / 2 - 120, canvas.height / 2 + 50, furthermore240, 40);
+        ctx.strokeRect(canvas.width / 2 - 120, canvas.height / 2 + 50, 240, 40);
         ctx.fillStyle = 'white';
         ctx.font = '20px Arial';
         ctx.fillText('Jogar', canvas.width / 2, canvas.height / 2 + 75);
 
+        // Redes sociais
         const socialLinks = [
             { name: 'YOUTUBE', url: 'https://www.youtube.com/@GAMEPLAYS-h7t' },
             { name: 'TWITCH', url: 'https://www.twitch.tv/isaque15e' },
@@ -495,7 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function movePlayer(deltaTime) {
-        if (player.hp <= 0) return; // Só mover se estiver vivo
+        if (player.hp <= 0 || !gameState.gameStarted) return;
 
         let accelX = 0;
         let accelY = 0;
@@ -519,18 +522,18 @@ document.addEventListener('DOMContentLoaded', () => {
         player.velocityX += accelX * deltaTime;
         player.velocityY += accelY * deltaTime;
 
-        if (!accelX) {
+        if (!accelX && player.velocityX !== 0) {
             const frictionX = player.velocityX > 0 ? -FRICTION : FRICTION;
             player.velocityX += frictionX * deltaTime;
             if (Math.abs(player.velocityX) < 1) player.velocityX = 0;
         }
-        if (!accelY) {
+        if (!accelY && player.velocityY !== 0) {
             const frictionY = player.velocityY > 0 ? -FRICTION : FRICTION;
             player.velocityY += frictionY * deltaTime;
             if (Math.abs(player.velocityY) < 1) player.velocityY = 0;
         }
 
-        const speed = Math.sqrt(player.velocityX * player.velocityX + player.velocityY * player.velocityY);
+        const speed = Math.sqrt(player.velocityX ** 2 + player.velocityY ** 2);
         if (speed > MAX_SPEED) {
             const factor = MAX_SPEED / speed;
             player.velocityX *= factor;
@@ -613,7 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function checkPlayerItemCollisions() {
-        if (player.hp <= 0) return; // Só coletar itens se estiver vivo
+        if (player.hp <= 0) return;
         gameState.items.forEach(item => {
             const dx = player.x - item.x;
             const dy = player.y - item.y;
@@ -638,7 +641,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function shoot() {
         const currentTime = Date.now();
-        if (currentTime - lastShotTime > bulletCooldown && player.hp > 0) { // Só atirar se estiver vivo
+        if (currentTime - lastShotTime > bulletCooldown && player.hp > 0) {
             lastShotTime = currentTime;
 
             const weaponLength = 30;
@@ -660,7 +663,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updatePlayer() {
         const now = Date.now();
-        if (player.hp > 0 && player.id && now - lastMoveUpdate >= moveUpdateInterval) { // Só atualizar se estiver vivo
+        if (player.hp > 0 && player.id && now - lastMoveUpdate >= moveUpdateInterval) {
             if (gameState.joystickRight.active) {
                 const dx = gameState.joystickRight.thumbX - gameState.joystickRight.x;
                 const dy = gameState.joystickRight.thumbY - gameState.joystickRight.y;
@@ -672,7 +675,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateCamera() {
-        if (player.hp > 0 && gameState.gameStarted) { // Só atualizar câmera se estiver vivo
+        if (player.hp > 0 && gameState.gameStarted) {
             gameState.cameraX = player.x - canvas.width / 2;
             gameState.cameraY = player.y - canvas.height / 2;
 
@@ -693,7 +696,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 document.body.style.cursor = 'default';
             }
-        } else if (!gameState.joystickRight.active && player.hp > 0) { // Só atualizar ângulo se vivo
+        } else if (!gameState.joystickRight.active && player.hp > 0) {
             const worldMouseX = mouseX + gameState.cameraX;
             const worldMouseY = mouseY + gameState.cameraY;
             player.angle = Math.atan2(worldMouseY - player.y, worldMouseX - player.x);
@@ -701,7 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     canvas.addEventListener('mousedown', (event) => {
-        if (event.button === 0 && player.hp > 0 && !gameState.joystickRight.active) { // Só atirar se vivo
+        if (event.button === 0 && player.hp > 0 && !gameState.joystickRight.active) {
             console.log('Mouse down at:', Date.now());
             player.isShooting = true;
         }
@@ -756,7 +759,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     canvas.addEventListener('touchmove', (event) => {
-        if (!gameState.gameStarted || player.hp <= 0) return; // Só mover se vivo
+        if (!gameState.gameStarted || player.hp <= 0) return;
         event.preventDefault();
         const touches = event.changedTouches;
         for (let i = 0; i < touches.length; i++) {
@@ -774,7 +777,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     canvas.addEventListener('touchend', (event) => {
-        if (!gameState.gameStarted || player.hp <= 0) return; // Só processar se vivo
+        if (!gameState.gameStarted || player.hp <= 0) return;
         event.preventDefault();
         const touches = event.changedTouches;
         for (let i = 0; i < touches.length; i++) {
@@ -892,7 +895,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (event.key.length === 1 && gameState.inputName.length < 15) {
                 gameState.inputName += event.key;
             }
-        } else if (gameState.gameStarted && player.hp > 0) { // Só processar teclas se vivo
+        } else if (gameState.gameStarted && player.hp > 0) {
             const key = event.key.toLowerCase();
             if (key in keys) {
                 keys[key] = true;
@@ -901,7 +904,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.addEventListener('keyup', (event) => {
-        if (player.hp <= 0) return; // Só processar se vivo
+        if (player.hp <= 0 || !gameState.gameStarted) return;
         const key = event.key.toLowerCase();
         if (key in keys) keys[key] = false;
     });
@@ -961,7 +964,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log("Game started confirmed by server for:", gameState.playerName);
             }
             const dx = serverPlayer.x - player.x;
-            const dy = serverPlayer.x - player.y;
+            const dy = serverPlayer.y - player.y; // Corrigido de serverPlayer.x para serverPlayer.y
             const distance = Math.hypot(dx, dy);
             if (distance > 50) {
                 player.x += dx * 0.1;
